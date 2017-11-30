@@ -47,13 +47,13 @@ object reader {
       val p: P[MalAtom] = P(string | keyword | symbol)
     }
 
-    val p: P[MalAtom] = P(numeric.p | boolean.p | string.p)
+    val p: P[MalAtom] = P(numeric.real | boolean.p | string.p)
   }
 
   object coll extends MalParser[MalColl] {
     private def listLike[T <: MalType](start: String, end: String, term: P[T]) =
       P(start ~ ws ~/ term.rep(sep = ws) ~/ ws ~ end)
-    val list: P[MalList] = listLike("(", ")", form).map(MalList(_: _*))
+    val list: P[MalList] = listLike("(", ")", form).map(MalList(_))
     val vector: P[MalVector] = listLike("[", "]", form).map(s => MalVector(s.toVector))
 
     private val keyVal: P[MalCons] = P(atom.p ~/ ws ~ form).map(MalCons(_))
@@ -64,7 +64,7 @@ object reader {
   }
 
   object macros extends MalParser[MalList] {
-    private def functionLike(prefix: String, name: String) = P(prefix ~/ form).map(MalList(MalSymbol(name), _))
+    private def functionLike(prefix: String, name: String) = P(prefix ~/ form).map(MalList.of(MalSymbol(name), _))
     val splice = functionLike("~@", "splice-unquote")
     val quote = functionLike("'", "quote")
     val quasi = functionLike("`", "quasiquote")
