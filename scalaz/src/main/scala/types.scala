@@ -11,13 +11,17 @@ object types {
   type MalTuple = (MalType, MalType)
 
   sealed trait MalColl extends MalType {
-    // TODO: should this use MalF instead? may require implicit conversions
+    // TODO: should this use MalF instead? may require implicit conversions and macros (could be fun)
     def map(f: MalType => MalType): MalColl
+    def toList: List[MalType] = {
+      @tailrec def go(coll: MalColl, acc: List[MalType]): List[MalType] = coll match {
+        case MalColl.cons(car, MalColl(cdr)) => go(cdr, car :: acc)
+        case _ => acc.reverse
+      }
+      go(this, Nil)
+    }
   }
   object MalColl {
-    object nil {
-      def unapply(arg: MalType): Boolean = arg == MalNil
-    }
     object cons {
       def unapply(arg: MalType): Option[MalTuple] = arg match {
         case MalNil => None
@@ -93,6 +97,10 @@ object types {
   case class MalSymbol(value: Symbol) extends MalAtom
   object MalSymbol {
     def apply(s: String): MalSymbol = MalSymbol(Symbol(s))
+    object sp {
+      val Def: MalSymbol = MalSymbol("def!")
+      val Let: MalSymbol = MalSymbol("let*")
+    }
   }
   case class MalKeyword(value: String) extends MalAtom
 
