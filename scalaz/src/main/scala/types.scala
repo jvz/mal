@@ -1,118 +1,140 @@
-import scala.annotation.tailrec
-
-/**
-  * While this could be implemented using direct types from Scala, this provides a typesafe DSL style of interpreting
-  * MAL code.
-  */
 object types {
 
-  sealed trait MalType
-  type MalF = PartialFunction[MalType, MalType]
-  type MalTuple = (MalType, MalType)
+  sealed trait MalType {
+    def eql(that: MalType): Boolean
+    def show(pretty: Boolean = true): String
+    def ? : Boolean = true
+  }
+  type MalF = PartialFunction[List[MalType], MalType]
+  type MalPair = (MalType, MalType)
 
-  sealed trait MalColl extends MalType {
-    // TODO: should this use MalF instead? may require implicit conversions and macros (could be fun)
+  sealed trait MalColl extends MalType with Iterable[MalType] {
     def map(f: MalType => MalType): MalColl
-    def toList: List[MalType] = {
-      @tailrec def go(coll: MalColl, acc: List[MalType]): List[MalType] = coll match {
-        case MalColl.cons(car, MalColl(cdr)) => go(cdr, car :: acc)
-        case _ => acc.reverse
-      }
-      go(this, Nil)
+    def flatMap(f: MalType => MalColl): MalColl
+    def pairs: Iterator[MalPair] = for {
+      List(a, b) <- toList.grouped(2)
+    } yield (a, b)
+    override def eql(that: MalType): Boolean = if (isEmpty) that match {
+      case MalColl(coll) if coll.isEmpty => true
+      case _ => false
+    } else that match {
+      case MalColl(coll) if coll.isEmpty => false
+      case MalColl(coll) =>
+        val as = this.toSeq
+        val bs = coll.toSeq
+        as.size == bs.size && as.zip(bs).forall {
+          case (a, b) => a eql b
+        }
     }
   }
   object MalColl {
-    object cons {
-      def unapply(arg: MalType): Option[MalTuple] = arg match {
-        case MalNil => None
-        case MalCons(car, cdr) => Some((car, cdr))
-        case MalVector(value) if value.nonEmpty => Some((value.head, MalVector(value.tail)))
-        case MalMap(value) if value.nonEmpty => Some((MalCons(value.head), MalMap(value.tail)))
-          // FIXME: should maps iterate over keyval conses or as a normal list?
-        case _ => None
-      }
-    }
     def unapply(arg: MalType): Option[MalColl] = arg match {
       case c: MalColl => Some(c)
       case _ => None
     }
   }
 
-  sealed trait MalList extends MalColl {
-    override def map(f: MalType => MalType): MalList
-  }
-  case object MalNil extends MalList {
-    override def map(f: MalType => MalType): MalList = MalNil
-  }
-  case class MalCons(car: MalType, cdr: MalType) extends MalList {
-    override def map(f: MalType => MalType): MalList = copy(f(car), f(cdr))
-    def tupled: MalTuple = (car, cdr)
-  }
-  object MalCons {
-    def apply(tuple: (MalType, MalType)): MalCons = MalCons(tuple._1, tuple._2)
+  final case class MalList(value: List[MalType]) extends MalColl {
+    override def map(f: MalType => MalType): MalList = copy(value map f)
+    override def flatMap(f: MalType => MalColl): MalColl = copy(value.map(f).flatMap(_.toList))
+    override def show(pretty: Boolean): String = value.map(_.show(pretty)).mkString("(", " ", ")")
+    override def iterator: Iterator[MalType] = value.iterator
   }
   object MalList {
-    private def unfold(list: MalList): Option[List[MalType]] = {
-      @tailrec
-      def go(l: MalList, acc: List[MalType]): Option[List[MalType]] = l match {
-        case MalNil => Some(acc.reverse)
-        case MalCons(car, cdr: MalList) => go(cdr, car :: acc)
-        case _ => None
-      }
-      go(list, Nil)
-    }
-
-    private def toList(args: Seq[MalType]): MalList = args.foldRight(MalNil: MalList) { (car, cdr) => MalCons(car, cdr) }
-
-    object of {
-      def apply(args: MalType*): MalList = toList(args)
-      def unapplySeq(list: MalList): Option[Seq[MalType]] = unfold(list)
-    }
-
-    def apply(list: Seq[MalType]): MalList = toList(list)
-    def unapply(list: MalList): Option[List[MalType]] = unfold(list)
+    def apply(args: MalType*): MalList = MalList(args.toList)
   }
 
-  // general idea here is that the input type will be some sort of MalColl for multiple arguments
-  case class MalFunction(pf: PartialFunction[MalType, MalType]) extends MalType
-
-  case class MalVector(value: Vector[MalType]) extends MalColl {
+  final case class MalVector(value: Vector[MalType]) extends MalColl {
     override def map(f: MalType => MalType): MalVector = copy(value map f)
+    override def flatMap(f: MalType => MalColl): MalColl = copy(value.map(f).flatMap(_.toVector))
+    override def show(pretty: Boolean): String = value.map(_.show(pretty)).mkString("[", " ", "]")
+    override def iterator: Iterator[MalType] = value.iterator
   }
-  // may be simpler to implement as a Seq[MalCons]? or even MalList of MalConses
-  case class MalMap(value: Map[MalType, MalType]) extends MalColl {
-    override def map(f: MalType => MalType): MalMap = copy(value mapValues f)
+  object MalVector {
+    def apply(args: MalType*): MalVector = MalVector(args.toVector)
   }
 
-  sealed trait MalAtom extends MalType
+  final case class MalMap(value: Map[MalType, MalType]) extends MalColl {
+    override def map(f: MalType => MalType): MalMap = copy(value mapValues f)
+    override def flatMap(f: MalType => MalColl): MalColl = map(f) // TODO
+    override def show(pretty: Boolean): String =
+      utils.flatten(value).map(_.show(pretty)).mkString("{", " ", "}")
+    override def iterator: Iterator[MalType] = utils.flatten(value).iterator
+  }
+  object MalMap {
+    def apply(args: MalPair*): MalMap = MalMap(args.toMap)
+  }
+
+  final case class MalFunction(pf: MalF) extends MalType {
+    override def show(pretty: Boolean): String = pf.toString()
+    override def eql(that: MalType): Boolean = that match {
+      case MalFunction(other) => pf == other
+      case _ => false
+    }
+  }
+
+  sealed trait MalAtom extends MalType {
+    override def eql(that: MalType): Boolean = this == that
+  }
   object MalAtom {
     def unapply(arg: MalAtom): Option[MalAtom] = Some(arg)
   }
 
-  sealed abstract class MalBoolean(val value: Boolean) extends MalAtom
-  case object MalTrue extends MalBoolean(true)
-  case object MalFalse extends MalBoolean(false)
+  // this particular implementation is similar to Unit
+  final case object MalNil extends MalAtom {
+    override def show(pretty: Boolean): String = "nil"
+    override def ? : Boolean = false
+  }
 
-  case class MalString(value: String) extends MalAtom
-  case class MalSymbol(value: Symbol) extends MalAtom
+  sealed abstract class MalBoolean(val value: Boolean) extends MalAtom {
+    override def show(pretty: Boolean): String = value.toString
+    override def ? : Boolean = value
+  }
+  final case object MalTrue extends MalBoolean(true)
+  final case object MalFalse extends MalBoolean(false)
+
+  final case class MalString(value: String) extends MalAtom {
+    override def show(pretty: Boolean): String = if (pretty) utils.escape(value) else value
+  }
+  final case class MalSymbol(value: Symbol) extends MalAtom {
+    override def show(pretty: Boolean): String = value.name
+  }
   object MalSymbol {
     def apply(s: String): MalSymbol = MalSymbol(Symbol(s))
     object sp {
       val Def: MalSymbol = MalSymbol("def!")
       val Let: MalSymbol = MalSymbol("let*")
+      val Do: MalSymbol = MalSymbol('do)
+      val If: MalSymbol = MalSymbol('if)
+      val Fn: MalSymbol = MalSymbol("fn*")
+      val Variadic: MalSymbol = MalSymbol('&)
     }
   }
-  case class MalKeyword(value: String) extends MalAtom
+  final case class MalKeyword(value: String) extends MalAtom {
+    override def show(pretty: Boolean): String = s":$value"
+  }
 
   sealed trait MalNumeric extends MalAtom
-  case class MalInt(value: BigInt) extends MalNumeric
+  final case class MalInt(value: BigInt) extends MalNumeric {
+    override def show(pretty: Boolean): String = value.toString
+  }
   object MalInt {
     def apply(s: String): MalInt = MalInt(BigInt(s))
   }
 
-  case class MalReal(value: BigDecimal) extends MalNumeric
+  final case class MalReal(value: BigDecimal) extends MalNumeric {
+    override def show(pretty: Boolean): String = value.toString
+  }
   object MalReal {
     def apply(s: String): MalReal = MalReal(BigDecimal(s))
+  }
+
+  object utils {
+    def flatten[A](map: Map[A, A]): Seq[A] =
+      map.toSeq.flatMap(tuple => Seq(tuple._1, tuple._2))
+
+    def escape(str: String): String =
+      "\"" + str.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n") + "\""
   }
 
 }

@@ -28,6 +28,10 @@ object reader {
       val p: P[MalNumeric] = P(int | real)
     }
 
+    object nil extends MalParser[MalAtom] {
+      val p: P[MalAtom] = P("nil").map(_ => MalNil)
+    }
+
     object boolean extends MalParser[MalBoolean] {
       val t: P[MalBoolean] = P("true").map(_ => MalTrue)
       val f: P[MalBoolean] = P("false").map(_ => MalFalse)
@@ -37,9 +41,10 @@ object reader {
     object string extends MalParser[MalAtom] {
       private val escape = P("\\" ~ CharIn("\"\\n"))
       private val strChars = P(CharsWhile(!"\"\\".contains(_: Char)))
-      val string: P[MalString] = P("\"" ~/ (strChars | escape).rep.! ~ "\"").map(MalString)
+      private def parse(str: String): String =
+        str.replace("\\\\", "\u029e").replace("\\\"", "\"").replace("\\n", "\n").replace("\u029e", "\\")
+      val string: P[MalString] = P("\"" ~/ (strChars | escape).rep.! ~/ "\"").map(s => MalString(parse(s)))
 
-      private val reserved = P(CharIn("[]{}()'`\""))
       private val sym = P(CharsWhile(c => !(c.isWhitespace || ",;[]{}()'`\"".contains(c)))).!
       val symbol: P[MalSymbol] = sym.map(MalSymbol(_))
       val keyword: P[MalKeyword] = P(":" ~/ sym).map(MalKeyword)
@@ -47,24 +52,23 @@ object reader {
       val p: P[MalAtom] = P(string | keyword | symbol)
     }
 
-    val p: P[MalAtom] = P(numeric.real | boolean.p | string.p)
+    val p: P[MalAtom] = P(numeric.real | nil.p | boolean.p | string.p)
   }
 
   object coll extends MalParser[MalColl] {
-    private def listLike[T <: MalType](start: String, end: String, term: P[T]) =
+    private def listLike[T](start: String, end: String, term: P[T]) =
       P(start ~ ws ~/ term.rep(sep = ws) ~/ ws ~ end)
-    val list: P[MalList] = listLike("(", ")", form).map(MalList(_))
+    val list: P[MalList] = listLike("(", ")", form).map(MalList(_: _*))
     val vector: P[MalVector] = listLike("[", "]", form).map(s => MalVector(s.toVector))
 
-    private val keyVal: P[MalCons] = P(atom.p ~/ ws ~ form).map(MalCons(_))
-    private def keyValsToMap(kvs: Seq[MalCons]): MalMap = MalMap(kvs.map(_.tupled).toMap)
-    val map: P[MalMap] = listLike("{", "}", keyVal).map(keyValsToMap)
+    private val keyVal: P[MalPair] = P(atom.p ~/ ws ~ form)
+    val map: P[MalMap] = listLike("{", "}", keyVal).map(kvs => MalMap(kvs.toMap))
 
     val p: P[MalColl] = P(list | vector | map)
   }
 
   object macros extends MalParser[MalList] {
-    private def functionLike(prefix: String, name: String) = P(prefix ~/ form).map(MalList.of(MalSymbol(name), _))
+    private def functionLike(prefix: String, name: String) = P(prefix ~/ form).map(MalList(MalSymbol(name), _))
     val splice = functionLike("~@", "splice-unquote")
     val quote = functionLike("'", "quote")
     val quasi = functionLike("`", "quasiquote")

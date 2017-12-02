@@ -10,7 +10,7 @@ object step1_read_print {
 
   def eval(ast: MalType, env: String): MalType = ast
 
-  def print(ast: MalType): String = printer.pr_str(ast)
+  def print(ast: MalType): String = ast.show()
 
   def rep(str: String): String = print(eval(read(str), ""))
 
