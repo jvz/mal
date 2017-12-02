@@ -1,3 +1,5 @@
+import java.util.concurrent.atomic.AtomicReference
+
 import env.Env
 
 object types {
@@ -67,25 +69,47 @@ object types {
     def apply(args: MalPair*): MalMap = MalMap(args.toMap)
   }
 
-  final case class MalFn(pf: MalF) extends MalType {
-    override def show(pretty: Boolean): String = pf.toString()
-    override def eql(that: MalType): Boolean = that match {
-      case MalFn(other) => pf == other
-      case _ => false
+  sealed trait MalFn extends MalType {
+    def apply(args: List[MalType]): MalType
+  }
+  object MalFn {
+    def unapply(arg: MalType): Option[MalFn] = arg match {
+      case f: MalFn => Some(f)
+      case _ => None
     }
   }
 
-  final case class MalFunction(params: Seq[MalSymbol], body: MalType, env: Env, fn: MalFn) extends MalType {
+  final case class MalLambda(lambda: MalF) extends MalFn {
+    override def show(pretty: Boolean): String = lambda.toString()
+    override def eql(that: MalType): Boolean = that match {
+      case MalLambda(other) => lambda == other
+      case _ => false
+    }
+    override def apply(args: List[MalType]): MalType = lambda(args)
+  }
+
+  final case class MalFunction(params: Seq[MalSymbol], body: MalType, env: Env, lambda: MalLambda) extends MalFn {
     override def eql(that: MalType): Boolean = this == that
     override def show(pretty: Boolean): String = toString
     def closure(args: Seq[MalType]): Env = env.inner(params, args)
+    override def apply(args: List[MalType]): MalType = lambda(args)
   }
 
+  // note that this terminology is lifted from traditional lisp; what mal refers to as an "atom" is called a "ref" here
   sealed trait MalAtom extends MalType {
     override def eql(that: MalType): Boolean = this == that
   }
   object MalAtom {
     def unapply(arg: MalAtom): Option[MalAtom] = Some(arg)
+  }
+
+  // what mal calls an atom
+  final case class MalRef(value: AtomicReference[MalType]) extends MalType {
+    override def eql(that: MalType): Boolean = that match {
+      case MalRef(other) => value.get() eql other.get()
+      case _ => false
+    }
+    override def show(pretty: Boolean): String = s"(atom ${value.get().show(pretty)})"
   }
 
   // this particular implementation is similar to Unit
@@ -116,6 +140,7 @@ object types {
       val If: MalSymbol = MalSymbol('if)
       val Fn: MalSymbol = MalSymbol("fn*")
       val Variadic: MalSymbol = MalSymbol('&)
+      val Args: MalSymbol = MalSymbol("*ARGV*")
     }
   }
   final case class MalKeyword(value: String) extends MalAtom {
@@ -143,6 +168,26 @@ object types {
 
     def escape(str: String): String =
       "\"" + str.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n") + "\""
+  }
+
+  implicit class MalHelper(private val sc: StringContext) extends AnyVal {
+    def mal(args: Any*): String = {
+      val strings = sc.parts.iterator
+      val exprs = args.iterator
+      val sb = new StringBuilder(strings.next())
+      for ((expr, string) <- exprs.zip(strings)) {
+        sb.append {
+          expr match {
+            case s: String => utils.escape(s)
+            case s: Symbol => s.name
+            case t: MalType => t.show()
+            case _ => throw new IllegalArgumentException(s"Invalid type found: $expr")
+          }
+        }
+          .append(string)
+      }
+      sb.toString()
+    }
   }
 
 }

@@ -19,7 +19,7 @@ object step2_eval {
   def eval(ast: MalType, env: Env): MalType = ast match {
     case MalList(_) =>
       eval_ast(ast, env) match {
-        case MalList(MalFn(f) :: args) => f(args)
+        case MalList(MalLambda(f) :: args) => f(args)
         case nil @ MalList(Nil) => nil
         case _ => core.syntax_error
       }

@@ -6,7 +6,7 @@ import scala.annotation.tailrec
 import scala.io.StdIn
 import scala.util.control.NonFatal
 
-object step5_tco {
+object step6_file {
 
   def read(str: String): MalType = reader.read_str(str)
 
@@ -55,9 +55,8 @@ object step5_tco {
 
       case MalList(_) =>
         eval_ast(ast, env) match {
-          case MalList(MalLambda(f) :: args) => f(args)
-          case MalList((f: MalFunction) :: args) =>
-            go(f.body, f.closure(args))
+          case MalList((f: MalFunction) :: args) => go(f.body, f.closure(args))
+          case MalList(MalFn(f) :: args) => f(args)
           case other => other
         }
 
@@ -70,7 +69,7 @@ object step5_tco {
 
   def rep(str: String, env: Env): String = print(eval(read(str), env))
 
-  def main(args: Array[String]): Unit = {
+  def main(argv: Array[String]): Unit = {
 
     def repl_env(): Env = {
       val env = Env()
@@ -89,9 +88,25 @@ object step5_tco {
       case None => ()
     }
 
-    val not = "(def! not (fn* (a) (if a false true)))"
     val env = repl_env()
-    rep(not, env)
-    go(env)
+    env(MalSymbol('eval)) = MalLambda {
+      case expr :: Nil => eval(expr, env)
+    }
+
+    val mal =
+      """
+        |(def! not (fn* (a) (if a false true)))
+        |(def! load-file (fn* (f) (eval (read-string (str "(do " (slurp f) ")")))))
+      """.stripMargin
+
+    for (line <- mal.lines) rep(line, env)
+    argv.map(MalString).toList match {
+      case filename :: args =>
+        env(Args) = MalList(args)
+        rep(mal"(load-file $filename)", env)
+      case Nil =>
+        env(Args) = MalList()
+        go(env)
+    }
   }
 }
