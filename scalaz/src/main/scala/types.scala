@@ -1,3 +1,5 @@
+import env.Env
+
 object types {
 
   sealed trait MalType {
@@ -71,6 +73,12 @@ object types {
       case MalFn(other) => pf == other
       case _ => false
     }
+  }
+
+  final case class MalFunction(params: Seq[MalSymbol], body: MalType, env: Env, fn: MalFn) extends MalType {
+    override def eql(that: MalType): Boolean = this == that
+    override def show(pretty: Boolean): String = toString
+    def closure(args: Seq[MalType]): Env = env.inner(params, args)
   }
 
   sealed trait MalAtom extends MalType {
