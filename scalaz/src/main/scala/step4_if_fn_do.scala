@@ -46,7 +46,7 @@ object step4_if_fn_do {
       }
 
     case MalList(Fn :: MalColl(args) :: expr :: Nil) =>
-      MalFunction {
+      MalFn {
         case params =>
           val binds = args.toSeq.map(_.asInstanceOf[MalSymbol])
           val exprs = params
@@ -55,7 +55,7 @@ object step4_if_fn_do {
 
     case MalList(_) =>
       eval_ast(ast, env) match {
-        case MalList(MalFunction(f) :: args) => f(args)
+        case MalList(MalFn(f) :: args) => f(args)
         case other => other
 //        case _ => core.syntax_error
       }

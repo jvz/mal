@@ -31,7 +31,7 @@ object step3_env {
 
     case MalList(_) =>
       eval_ast(ast, env) match {
-        case MalList(MalFunction(f) :: args) => f(args)
+        case MalList(MalFn(f) :: args) => f(args)
         case nil @ MalList(Nil) => nil
         case _ => core.syntax_error
       }

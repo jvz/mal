@@ -65,10 +65,10 @@ object types {
     def apply(args: MalPair*): MalMap = MalMap(args.toMap)
   }
 
-  final case class MalFunction(pf: MalF) extends MalType {
+  final case class MalFn(pf: MalF) extends MalType {
     override def show(pretty: Boolean): String = pf.toString()
     override def eql(that: MalType): Boolean = that match {
-      case MalFunction(other) => pf == other
+      case MalFn(other) => pf == other
       case _ => false
     }
   }

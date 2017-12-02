@@ -2,63 +2,63 @@ import types._
 
 // TODO: a better DSL here would be nice (or macros to convert from scala to lisp forms)
 object core {
-  val ns: Map[MalSymbol, MalFunction] = Map(
+  val ns: Map[MalSymbol, MalFn] = Map(
     // TODO: make numbers less annoying so we can use ints, too
-    MalSymbol('+) -> MalFunction {
+    MalSymbol('+) -> MalFn {
       case MalReal(x) :: MalReal(y) :: Nil => MalReal(x + y)
     },
-    MalSymbol('-) -> MalFunction {
+    MalSymbol('-) -> MalFn {
       case MalReal(x) :: MalReal(y) :: Nil => MalReal(x - y)
     },
-    MalSymbol('*) -> MalFunction {
+    MalSymbol('*) -> MalFn {
       case MalReal(x) :: MalReal(y) :: Nil => MalReal(x * y)
     },
-    MalSymbol('/) -> MalFunction {
+    MalSymbol('/) -> MalFn {
       case MalReal(x) :: MalReal(y) :: Nil => MalReal(x / y)
     },
-    MalSymbol('list) -> MalFunction {
+    MalSymbol('list) -> MalFn {
       case elems => MalList(elems)
     },
-    MalSymbol("list?") -> MalFunction {
+    MalSymbol("list?") -> MalFn {
       case MalList(_) :: Nil => MalTrue
       case _ => MalFalse
     },
-    MalSymbol("empty?") -> MalFunction {
+    MalSymbol("empty?") -> MalFn {
       case MalColl(coll) :: Nil if coll.isEmpty => MalTrue
       case _ => MalFalse
     },
-    MalSymbol('count) -> MalFunction {
+    MalSymbol('count) -> MalFn {
       case MalColl(coll) :: Nil => MalReal(coll.size)
       case MalNil :: Nil => MalReal(0)
     },
-    MalSymbol('=) -> MalFunction {
+    MalSymbol('=) -> MalFn {
       case a :: b :: Nil if a eql b => MalTrue
       case _ => MalFalse
     },
-    MalSymbol('<) -> MalFunction {
+    MalSymbol('<) -> MalFn {
       case MalReal(a) :: MalReal(b) :: Nil => if (a < b) MalTrue else MalFalse
     },
-    MalSymbol('<=) -> MalFunction {
+    MalSymbol('<=) -> MalFn {
       case MalReal(a) :: MalReal(b) :: Nil => if (a <= b) MalTrue else MalFalse
     },
-    MalSymbol('>) -> MalFunction {
+    MalSymbol('>) -> MalFn {
       case MalReal(a) :: MalReal(b) :: Nil => if (a > b) MalTrue else MalFalse
     },
-    MalSymbol('>=) -> MalFunction {
+    MalSymbol('>=) -> MalFn {
       case MalReal(a) :: MalReal(b) :: Nil => if (a >= b) MalTrue else MalFalse
     },
-    MalSymbol("pr-str") -> MalFunction {
+    MalSymbol("pr-str") -> MalFn {
       case args => MalString(args.map(_.show()).mkString(" "))
     },
-    MalSymbol('str) -> MalFunction {
+    MalSymbol('str) -> MalFn {
       case args => MalString(args.map(_.show(false)).mkString)
     },
-    MalSymbol('prn) -> MalFunction {
+    MalSymbol('prn) -> MalFn {
       case args =>
         println(args.map(_.show()).mkString(" "))
         MalNil
     },
-    MalSymbol('println) -> MalFunction {
+    MalSymbol('println) -> MalFn {
       case args =>
         println(args.map(_.show(false)).mkString(" "))
         MalNil
