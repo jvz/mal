@@ -83,6 +83,6 @@ object reader {
 
   val form: P[MalType] = P(macros.p | coll.p | atom.p)
 
-  def read_str(expr: String): MalType = P(ws ~ form ~ ws).parse(expr).get.value
+  def read_str(expr: String): MalType = P(ws ~ form.? ~ ws).map(_.getOrElse(MalNil)).parse(expr).get.value
 
 }
