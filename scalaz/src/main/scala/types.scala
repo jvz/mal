@@ -7,7 +7,6 @@ object types {
   sealed trait MalType {
     def eql(that: MalType): Boolean
     def show(pretty: Boolean = true): String
-    def ? : Boolean = true
   }
   type MalF = PartialFunction[List[MalType], MalType]
   type MalPair = (MalType, MalType)
@@ -115,12 +114,10 @@ object types {
   // this particular implementation is similar to Unit
   final case object MalNil extends MalAtom {
     override def show(pretty: Boolean): String = "nil"
-    override def ? : Boolean = false
   }
 
   sealed abstract class MalBoolean(val value: Boolean) extends MalAtom {
     override def show(pretty: Boolean): String = value.toString
-    override def ? : Boolean = value
   }
   final case object MalTrue extends MalBoolean(true)
   final case object MalFalse extends MalBoolean(false)
@@ -141,6 +138,10 @@ object types {
       val Fn: MalSymbol = MalSymbol("fn*")
       val Variadic: MalSymbol = MalSymbol('&)
       val Args: MalSymbol = MalSymbol("*ARGV*")
+      val Quote: MalSymbol = MalSymbol('quote)
+      val Quasiquote: MalSymbol = MalSymbol('quasiquote)
+      val Unquote: MalSymbol = MalSymbol('unquote)
+      val SpliceUnquote: MalSymbol = MalSymbol("splice-unquote")
     }
   }
   final case class MalKeyword(value: String) extends MalAtom {
@@ -169,6 +170,8 @@ object types {
     def escape(str: String): String =
       "\"" + str.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n") + "\""
   }
+
+  implicit def isTruthy(v: MalType): Boolean = v != MalNil && v != MalFalse
 
   implicit class MalHelper(private val sc: StringContext) extends AnyVal {
     def mal(args: Any*): String = {

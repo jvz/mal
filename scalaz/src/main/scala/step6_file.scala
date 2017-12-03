@@ -40,7 +40,7 @@ object step6_file {
         }
 
       case MalList(If :: condition :: ifTrue :: rest) =>
-        if (eval(condition, env).?) go(ifTrue, env)
+        if (eval(condition, env)) go(ifTrue, env)
         else rest match {
           case Nil => MalNil
           case ifFalse :: Nil => go(ifFalse, env)

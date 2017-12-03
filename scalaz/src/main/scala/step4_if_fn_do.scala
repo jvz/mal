@@ -38,7 +38,7 @@ object step4_if_fn_do {
       }
 
     case MalList(If :: condition :: ifTrue :: rest) =>
-      if (eval(condition, env).?) eval(ifTrue, env)
+      if (eval(condition, env)) eval(ifTrue, env)
       else rest match {
         case Nil => MalNil
         case ifFalse :: Nil => eval(ifFalse, env)
