@@ -46,6 +46,13 @@ object types {
   object MalList {
     def apply(args: MalType*): MalList = MalList(args.toList)
   }
+  object MalPair {
+    def unapply(arg: MalType): Option[(MalType, List[MalType])] = arg match {
+      case MalList(head :: tail) => Some((head, tail))
+      case MalVector(v) if v.nonEmpty => Some((v.head, v.tail.toList))
+      case _ => None
+    }
+  }
 
   final case class MalVector(value: Vector[MalType]) extends MalColl {
     override def map(f: MalType => MalType): MalVector = copy(value map f)
@@ -142,6 +149,8 @@ object types {
       val Quasiquote: MalSymbol = MalSymbol('quasiquote)
       val Unquote: MalSymbol = MalSymbol('unquote)
       val SpliceUnquote: MalSymbol = MalSymbol("splice-unquote")
+      val Concat: MalSymbol = MalSymbol('concat)
+      val Cons: MalSymbol = MalSymbol('cons)
     }
   }
   final case class MalKeyword(value: String) extends MalAtom {

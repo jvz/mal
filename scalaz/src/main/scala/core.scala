@@ -1,6 +1,7 @@
 import java.util.concurrent.atomic.AtomicReference
 
 import types._
+import types.MalSymbol.sp._
 
 import scala.io.Source
 
@@ -75,6 +76,7 @@ object core {
       case MalString(value) :: Nil =>
         MalString(Source.fromFile(value).mkString)
     },
+    // not part of mal spec
     MalSymbol("type-of") -> MalLambda {
       case arg :: Nil =>
         MalString(arg.getClass.getSimpleName)
@@ -101,6 +103,22 @@ object core {
         val result = f(ref.get() :: args)
         ref.set(result)
         result
+    },
+    Cons -> MalLambda {
+      case value :: MalList(list) :: Nil =>
+        MalList(value :: list)
+      case value :: MalVector(vector) :: Nil =>
+        MalList(value :: vector.toList)
+    },
+    Concat -> MalLambda {
+      case lists =>
+        MalList {
+          lists flatMap {
+            case MalList(list) => list
+            case MalVector(vector) => vector.toList
+            case _ => core.syntax_error
+          }
+        }
     }
   )
 

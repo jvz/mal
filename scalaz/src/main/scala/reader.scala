@@ -68,12 +68,13 @@ object reader {
   }
 
   object macros extends MalParser[MalList] {
-    private def functionLike(prefix: String, name: String) = P(prefix ~/ form).map(MalList(MalSymbol(name), _))
-    val splice = functionLike("~@", "splice-unquote")
-    val quote = functionLike("'", "quote")
-    val quasi = functionLike("`", "quasiquote")
-    val unquote = functionLike("~", "unquote")
-    val deref = functionLike("@", "deref")
+    private def functionLike(prefix: String, name: MalSymbol) = P(prefix ~/ form).map(MalList(name, _))
+    import MalSymbol.sp._
+    val splice = functionLike("~@", SpliceUnquote)
+    val quote = functionLike("'", Quote)
+    val quasi = functionLike("`", Quasiquote)
+    val unquote = functionLike("~", Unquote)
+    val deref = functionLike("@", MalSymbol('deref))
 
     // TEST: ^{"a" 1} [1 2 3] -> (with-meta [1 2 3] {"a" 1})
 //    val meta =
