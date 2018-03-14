@@ -1,0 +1,3 @@
+#!/bin/bash
+export JAVA_HOME=$(/usr/libexec/java_home -v 1.8)
+exec java -cp "$(dirname $0)/target/scala-2.12/mal.jar" "${STEP:-stepA_mal}" "$@"

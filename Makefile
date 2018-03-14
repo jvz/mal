@@ -83,7 +83,7 @@ IMPLS = ada awk bash basic c chuck clojure coffee common-lisp cpp crystal cs d d
 	haxe hy io java js julia jvzgo kotlin livescript logo lua make mal matlab miniMAL \
 	nim objc objpascal ocaml perl perl6 php pil plpgsql plsql powershell ps \
 	python r racket rexx rpython ruby rust scala scheme skew swift swift3 tcl \
-	ts vb vhdl vimscript yorick
+	ts vb vhdl vimscript yorick scalaz
 
 EXTENSION = .mal
 
@@ -233,6 +233,7 @@ rpython_STEP_TO_PROG = rpython/$($(1))
 ruby_STEP_TO_PROG =    ruby/$($(1)).rb
 rust_STEP_TO_PROG =    rust/target/release/$($(1))
 scala_STEP_TO_PROG =   scala/target/scala-2.11/classes/$($(1)).class
+scalaz_STEP_TO_PROG =  scalaz/target/scala-2.12/classes/$($(1)).class
 scheme_STEP_TO_PROG =  $(scheme_STEP_TO_PROG_$(scheme_MODE))
 skew_STEP_TO_PROG =    skew/$($(1)).js
 swift_STEP_TO_PROG =   swift/$($(1))
