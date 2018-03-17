@@ -7,6 +7,10 @@ type MalList struct {
 	Value []MalType
 }
 
+func NewList(values ...MalType) MalList {
+	return MalList{Value: values}
+}
+
 type MalSymbol struct {
 	Value string
 }

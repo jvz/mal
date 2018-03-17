@@ -93,12 +93,6 @@ func (tr *TokenReader) readAtom() (MalType, error) {
 		}
 		contents := stringEscapesReplacer.Replace((*tok)[1:end])
 		return MalString{Value: contents}, nil
-	case *tok == "nil":
-		return MalNilVal, nil
-	case *tok == "true":
-		return MalTrueVal, nil
-	case *tok == "false":
-		return MalFalseVal, nil
 	case intPattern.MatchString(*tok):
 		i, err := strconv.Atoi(*tok)
 		if err != nil {
@@ -106,6 +100,54 @@ func (tr *TokenReader) readAtom() (MalType, error) {
 		} else {
 			return MalInt{Value: i}, nil
 		}
+	}
+	switch *tok {
+	case "'":
+		form, err := tr.readForm()
+		if err != nil {
+			return nil, err
+		}
+		return NewList(MalSymbol{Value: "quote"}, form), nil
+	case "`":
+		form, err := tr.readForm()
+		if err != nil {
+			return nil, err
+		}
+		return NewList(MalSymbol{Value: "quasiquote"}, form), nil
+	case "~":
+		form, err := tr.readForm()
+		if err != nil {
+			return nil, err
+		}
+		return NewList(MalSymbol{Value: "unquote"}, form), nil
+	case "~@":
+		form, err := tr.readForm()
+		if err != nil {
+			return nil, err
+		}
+		return NewList(MalSymbol{Value: "splice-unquote"}, form), nil
+	case "^":
+		meta, err := tr.readForm()
+		if err != nil {
+			return nil, err
+		}
+		form, err := tr.readForm()
+		if err != nil {
+			return nil, err
+		}
+		return NewList(MalSymbol{Value: "with-meta"}, form, meta), nil
+	case "@":
+		form, err := tr.readForm()
+		if err != nil {
+			return nil, err
+		}
+		return NewList(MalSymbol{Value: "deref"}, form), nil
+	case "nil":
+		return MalNilVal, nil
+	case "true":
+		return MalTrueVal, nil
+	case "false":
+		return MalFalseVal, nil
 	default:
 		return MalSymbol{Value: *tok}, nil
 	}
