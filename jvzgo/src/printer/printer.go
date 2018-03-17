@@ -3,54 +3,53 @@ package printer
 import (
 	"fmt"
 	"strconv"
-	"types"
+	"strings"
+	. "types"
 )
 
-func PrintStr(obj types.MalType, printReadably bool) string {
+func PrintStr(obj MalType, printReadably bool) string {
 	switch o := obj.(type) {
-	case types.MalList:
-		listSize := len(o.Value)
-		if listSize == 0 {
-			return "()"
+	case MalList:
+		strs := make([]string, len(o.Value))
+		for i, val := range o.Value {
+			strs[i] = PrintStr(val, printReadably)
 		}
-		list := make([]string, 0, listSize)
-		for _, val := range o.Value {
-			printed := PrintStr(val, printReadably)
-			list = append(list, printed)
+		return joinStrings(strs, o.StartStr, o.EndStr)
+	case MalMap:
+		strs := make([]string, 0, len(o.Value)*2)
+		for k, v := range o.Value {
+			key := PrintStr(k, printReadably)
+			val := PrintStr(v, printReadably)
+			strs = append(strs, key, val)
 		}
-		size := listSize + 1
-		for _, s := range list {
-			size += len(s)
-		}
-		b := make([]byte, size)
-		b[0] = '('
-		pos := copy(b[1:], list[0]) + 1
-		for _, s := range list[1:] {
-			b[pos] = ' '
-			pos++
-			pos += copy(b[pos:], s)
-		}
-		b[pos] = ')'
-		return string(b)
-	case types.MalInt:
+		return joinStrings(strs, "{", "}")
+	case MalInt:
 		return strconv.Itoa(o.Value)
-	case types.MalSymbol:
+	case MalSymbol:
 		return o.Value
-	case types.MalString:
+	case MalString:
 		if printReadably {
 			return strconv.Quote(o.Value)
 		} else {
 			return o.Value
 		}
-	case types.MalBool:
+	case MalBool:
 		if o.Value {
 			return "true"
 		} else {
 			return "false"
 		}
-	case types.MalNil:
+	case MalNil:
 		return "nil"
 	default:
 		return fmt.Sprintf("%v", o)
+	}
+}
+
+func joinStrings(strs []string, start, end string) string {
+	if len(strs) == 0 {
+		return start + end
+	} else {
+		return start + strings.Join(strs, " ") + end
 	}
 }

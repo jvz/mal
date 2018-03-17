@@ -6,6 +6,7 @@ import (
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	. "types"
@@ -69,9 +70,36 @@ func (tr *TokenReader) readForm() (MalType, error) {
 	}
 	switch *tok {
 	case "(":
-		return tr.readList()
+		list, err := tr.readList("(", ")")
+		if err != nil {
+			return nil, err
+		}
+		return MalList{Value: list, StartStr: "(", EndStr: ")"}, nil
 	case ")":
 		return nil, errors.New("unexpected )")
+	case "[":
+		vec, err := tr.readList("[", "]")
+		if err != nil {
+			return nil, err
+		}
+		return MalList{Value: vec, StartStr: "[", EndStr: "]"}, nil
+	case "]":
+		return nil, errors.New("unexpected ]")
+	case "{":
+		keyValues, err := tr.readList("{", "}")
+		if err != nil {
+			return nil, err
+		}
+		if len(keyValues)&1 != 0 {
+			return nil, errors.New("expected an even number of params to a map literal")
+		}
+		m := make(map[MalType]MalType)
+		for i := 0; i < len(keyValues); i += 2 {
+			m[keyValues[i]] = keyValues[i+1]
+		}
+		return MalMap{Value: m}, nil
+	case "}":
+		return nil, errors.New("unexpected }")
 	default:
 		return tr.readAtom()
 	}
@@ -153,21 +181,21 @@ func (tr *TokenReader) readAtom() (MalType, error) {
 	}
 }
 
-func (tr *TokenReader) readList() (MalType, error) {
+func (tr *TokenReader) readList(start, end string) ([]MalType, error) {
 	tok := tr.Next() // (
 	if tok == nil {
 		return nil, errors.New("readList underflow")
 	}
-	if *tok != "(" {
-		return nil, errors.New("expected (")
+	if *tok != start {
+		return nil, fmt.Errorf("expected %s", start)
 	}
 	list := make([]MalType, 0, 1)
 	for {
 		tok = tr.Peek()
 		if tok == nil {
-			return nil, errors.New("expected )")
+			return nil, fmt.Errorf("expected %s", end)
 		}
-		if *tok == ")" {
+		if *tok == end {
 			break
 		}
 		form, err := tr.readForm()
@@ -177,6 +205,5 @@ func (tr *TokenReader) readList() (MalType, error) {
 		list = append(list, form)
 	}
 	tr.Next() // )
-	result := MalList{Value: list}
-	return result, nil
+	return list, nil
 }

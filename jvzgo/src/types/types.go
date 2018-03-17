@@ -4,11 +4,17 @@ type MalType interface {
 }
 
 type MalList struct {
-	Value []MalType
+	Value    []MalType
+	StartStr string
+	EndStr   string
 }
 
 func NewList(values ...MalType) MalList {
-	return MalList{Value: values}
+	return MalList{Value: values, StartStr: "(", EndStr: ")"}
+}
+
+type MalMap struct {
+	Value map[MalType]MalType
 }
 
 type MalSymbol struct {
