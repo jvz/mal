@@ -3,10 +3,6 @@ package types
 type MalType interface {
 }
 
-type MalError struct {
-	Value MalType
-}
-
 type MalList struct {
 	Value []MalType
 }
