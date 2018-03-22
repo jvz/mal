@@ -41,6 +41,8 @@ func PrintStr(obj MalType, printReadably bool) string {
 		}
 	case MalNil:
 		return "nil"
+	case func([]MalType) (MalType, error):
+		return fmt.Sprintf("#<%v>", o)
 	default:
 		return fmt.Sprintf("%v", o)
 	}
