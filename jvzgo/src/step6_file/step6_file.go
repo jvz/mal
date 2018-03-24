@@ -17,16 +17,6 @@ func READ(str string) (MalType, error) {
 	return reader.ReadStr(str)
 }
 
-var replEnv = newReplEnv()
-
-func newReplEnv() EnvType {
-	env := NewEnv()
-	for sym, fn := range core.NS {
-		env.Set(sym, fn)
-	}
-	return env
-}
-
 func evalAst(ast MalType, env EnvType) (MalType, error) {
 	switch ast := ast.(type) {
 	case MalSymbol:
@@ -204,6 +194,8 @@ func PRINT(exp MalType) (string, error) {
 	return printer.PrintStr(exp, true), nil
 }
 
+var replEnv = NewEnv()
+
 func rep(str string) (string, error) {
 	ast, err := READ(str)
 	if err != nil {
@@ -217,7 +209,27 @@ func rep(str string) (string, error) {
 }
 
 func main() {
+	for sym, fn := range core.NS {
+		replEnv.Set(sym, fn)
+	}
+	replEnv.Set("eval", core.MonoErrFunc(func(a MalType) (MalType, error) {
+		return EVAL(a, replEnv)
+	}))
 	rep(`(def! not (fn* (a) (if a false true)))`)
+	rep(`(def! load-file (fn* (f) (eval (read-string (str "(do " (slurp f) ")")))))`)
+	if len(os.Args) > 1 {
+		filename := os.Args[1]
+		argv := make([]MalType, len(os.Args)-2)
+		if len(os.Args) > 2 {
+			for i, arg := range os.Args[2:] {
+				argv[i] = MalString{Value: arg}
+			}
+		}
+		replEnv.Set("*ARGV*", NewList(argv))
+		rep(`(load-file "` + filename + `")`)
+		return
+	}
+	replEnv.Set("*ARGV*", NewListOf())
 	in := bufio.NewScanner(os.Stdin)
 	for {
 		fmt.Print("user> ")
@@ -225,7 +237,7 @@ func main() {
 			read := strings.TrimSpace(in.Text())
 			result, err := rep(read)
 			if err != nil {
-				fmt.Println(err)
+				fmt.Println("Error:", err)
 			} else {
 				fmt.Println(result)
 			}

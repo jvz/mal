@@ -2,18 +2,20 @@ package core
 
 import (
 	"fmt"
+	"io/ioutil"
 	"printer"
+	"reader"
 	"strings"
 	. "types"
 )
 
-func monoFunc(f func(MalType) MalType) func([]MalType) (MalType, error) {
-	return monoErrFunc(func(a MalType) (MalType, error) {
+func MonoFunc(f func(MalType) MalType) func([]MalType) (MalType, error) {
+	return MonoErrFunc(func(a MalType) (MalType, error) {
 		return f(a), nil
 	})
 }
 
-func monoErrFunc(f func(MalType) (MalType, error)) func([]MalType) (MalType, error) {
+func MonoErrFunc(f func(MalType) (MalType, error)) func([]MalType) (MalType, error) {
 	return func(args []MalType) (MalType, error) {
 		if len(args) != 1 {
 			return nil, fmt.Errorf("invalid args: %v", args)
@@ -22,13 +24,13 @@ func monoErrFunc(f func(MalType) (MalType, error)) func([]MalType) (MalType, err
 	}
 }
 
-func biFunc(f func(MalType, MalType) MalType) func([]MalType) (MalType, error) {
-	return biErrFunc(func(a MalType, b MalType) (MalType, error) {
+func BiFunc(f func(MalType, MalType) MalType) func([]MalType) (MalType, error) {
+	return BiErrFunc(func(a MalType, b MalType) (MalType, error) {
 		return f(a, b), nil
 	})
 }
 
-func biErrFunc(f func(MalType, MalType) (MalType, error)) func([]MalType) (MalType, error) {
+func BiErrFunc(f func(MalType, MalType) (MalType, error)) func([]MalType) (MalType, error) {
 	return func(args []MalType) (MalType, error) {
 		if len(args) != 2 {
 			return nil, fmt.Errorf("invalid args: %v", args)
@@ -38,7 +40,7 @@ func biErrFunc(f func(MalType, MalType) (MalType, error)) func([]MalType) (MalTy
 }
 
 func intBiFunc(f func(int, int) int) func([]MalType) (MalType, error) {
-	return biErrFunc(func(a1 MalType, a2 MalType) (MalType, error) {
+	return BiErrFunc(func(a1 MalType, a2 MalType) (MalType, error) {
 		a, err := GetInt(a1)
 		if err != nil {
 			return nil, err
@@ -52,7 +54,7 @@ func intBiFunc(f func(int, int) int) func([]MalType) (MalType, error) {
 }
 
 func intBiPred(f func(int, int) bool) func([]MalType) (MalType, error) {
-	return biErrFunc(func(a1 MalType, a2 MalType) (MalType, error) {
+	return BiErrFunc(func(a1 MalType, a2 MalType) (MalType, error) {
 		a, err := GetInt(a1)
 		if err != nil {
 			return nil, err
@@ -81,17 +83,17 @@ var NS = map[string]MalType{
 	`list`: func(args []MalType) (MalType, error) {
 		return MalList{Value: args, StartStr: "(", EndStr: ")"}, nil
 	},
-	`list?`: monoFunc(func(a MalType) MalType {
+	`list?`: MonoFunc(func(a MalType) MalType {
 		return MalBool{Value: IsList(a)}
 	}),
-	`empty?`: monoErrFunc(func(a MalType) (MalType, error) {
+	`empty?`: MonoErrFunc(func(a MalType) (MalType, error) {
 		list, err := GetSlice(a)
 		if err != nil {
 			return nil, err
 		}
 		return MalBool{Value: len(list) == 0}, nil
 	}),
-	`count`: monoErrFunc(func(a MalType) (MalType, error) {
+	`count`: MonoErrFunc(func(a MalType) (MalType, error) {
 		switch arg := a.(type) {
 		case MalNil:
 			return MalInt{Value: 0}, nil
@@ -101,7 +103,7 @@ var NS = map[string]MalType{
 			return RaiseTypeError("list", arg)
 		}
 	}),
-	`=`: biFunc(func(a MalType, b MalType) MalType {
+	`=`: BiFunc(func(a MalType, b MalType) MalType {
 		return MalBool{Value: equal(a, b)}
 	}),
 	`<`: intBiPred(func(a int, b int) bool {
@@ -148,6 +150,70 @@ var NS = map[string]MalType{
 		}
 		fmt.Println(strings.Join(prints, " "))
 		return MalNil{}, nil
+	},
+	`read-string`: MonoErrFunc(func(a MalType) (MalType, error) {
+		str, err := GetString(a)
+		if err != nil {
+			return nil, err
+		}
+		return reader.ReadStr(str.Value)
+	}),
+	`slurp`: MonoErrFunc(func(a MalType) (MalType, error) {
+		str, err := GetString(a)
+		if err != nil {
+			return nil, err
+		}
+		content, err := ioutil.ReadFile(str.Value)
+		if err != nil {
+			return nil, err
+		}
+		return MalString{Value: string(content)}, nil
+	}),
+	`atom`: MonoFunc(func(a MalType) MalType {
+		return NewAtom(a)
+	}),
+	`atom?`: MonoFunc(func(a MalType) MalType {
+		_, ok := a.(*MalAtom)
+		return MalBool{Value: ok}
+	}),
+	`deref`: MonoErrFunc(func(a MalType) (MalType, error) {
+		atom, err := GetAtom(a)
+		if err != nil {
+			return nil, err
+		}
+		return atom.Value, nil
+	}),
+	`reset!`: BiErrFunc(func(a1 MalType, a2 MalType) (MalType, error) {
+		atom, err := GetAtom(a1)
+		if err != nil {
+			return nil, err
+		}
+		atom.Set(a2)
+		return a2, nil
+	}),
+	`swap!`: func(args []MalType) (MalType, error) {
+		if len(args) < 2 {
+			return nil, fmt.Errorf("invalid args: %v", args)
+		}
+		atom, err := GetAtom(args[0])
+		if err != nil {
+			return nil, err
+		}
+		fn, err := GetFn(args[1])
+		if err != nil {
+			return nil, err
+		}
+		fnArgs := make([]MalType, len(args)-1)
+		fnArgs[0] = atom.Value
+		if len(args) > 2 {
+			copy(fnArgs[1:], args[2:])
+		}
+		res, err := fn(fnArgs)
+		if err != nil {
+			return nil, err
+		}
+		atom.Set(res)
+		return res, nil
 	},
 }
 

@@ -106,6 +106,29 @@ func GetMap(val MalType) (MalMap, error) {
 	return MalMap{}, NewTypeError("map", val)
 }
 
+type MalAtom struct {
+	Value MalType
+}
+
+func (ma *MalAtom) String() string {
+	return fmt.Sprint(ma.Value)
+}
+
+func (ma *MalAtom) Set(val MalType) {
+	ma.Value = val
+}
+
+func NewAtom(val MalType) *MalAtom {
+	return &MalAtom{Value: val}
+}
+
+func GetAtom(val MalType) (*MalAtom, error) {
+	if ma, ok := val.(*MalAtom); ok {
+		return ma, nil
+	}
+	return nil, NewTypeError("atom", val)
+}
+
 type MalSymbol struct {
 	Value string
 }

@@ -23,6 +23,8 @@ func PrintStr(obj MalType, printReadably bool) string {
 			strs = append(strs, key, val)
 		}
 		return joinStrings(strs, "{", "}")
+	case *MalAtom:
+		return "(atom " + PrintStr(o.Value, printReadably) + ")"
 	case MalInt:
 		return strconv.Itoa(o.Value)
 	case MalSymbol:
