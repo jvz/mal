@@ -44,7 +44,7 @@ func NewList(value []MalType) MalList {
 }
 
 func NewListOf(values ...MalType) MalList {
-	return MalList{Value: values, StartStr: "(", EndStr: ")"}
+	return NewList(values)
 }
 
 func IsList(val MalType) bool {
@@ -56,8 +56,19 @@ func IsList(val MalType) bool {
 	}
 }
 
-func NewVec(values ...MalType) MalList {
-	return MalList{Value: values, StartStr: "[", EndStr: "]"}
+func GetList(val MalType) (MalList, error) {
+	if IsList(val) {
+		return val.(MalList), nil
+	}
+	return NewListOf(), NewTypeError("list", val)
+}
+
+func NewVec(value []MalType) MalList {
+	return MalList{Value: value, StartStr: "[", EndStr: "]"}
+}
+
+func NewVecOf(values ...MalType) MalList {
+	return NewVec(values)
 }
 
 func IsVec(val MalType) bool {
@@ -67,6 +78,13 @@ func IsVec(val MalType) bool {
 	default:
 		return false
 	}
+}
+
+func GetVec(val MalType) (MalList, error) {
+	if IsVec(val) {
+		return val.(MalList), nil
+	}
+	return NewVecOf(), NewTypeError("vector", val)
 }
 
 func GetSlice(val MalType) ([]MalType, error) {
@@ -81,6 +99,13 @@ type MalMap struct {
 	Value map[MalType]MalType
 }
 
+func GetMap(val MalType) (MalMap, error) {
+	if mm, ok := val.(MalMap); ok {
+		return mm, nil
+	}
+	return MalMap{}, NewTypeError("map", val)
+}
+
 type MalSymbol struct {
 	Value string
 }
@@ -92,9 +117,8 @@ func (ms MalSymbol) String() string {
 func GetSymbol(val MalType) (MalSymbol, error) {
 	if ms, ok := val.(MalSymbol); ok {
 		return ms, nil
-	} else {
-		return MalSymbol{}, NewTypeError("symbol", val)
 	}
+	return MalSymbol{}, NewTypeError("symbol", val)
 }
 
 type MalString struct {
@@ -105,12 +129,26 @@ func (ms MalString) String() string {
 	return ms.Value
 }
 
+func GetString(val MalType) (MalString, error) {
+	if ms, ok := val.(MalString); ok {
+		return ms, nil
+	}
+	return MalString{}, NewTypeError("string", val)
+}
+
 type MalKeyword struct {
 	Value string
 }
 
 func (mk MalKeyword) String() string {
 	return mk.Value
+}
+
+func GetKeyword(val MalType) (MalKeyword, error) {
+	if mk, ok := val.(MalKeyword); ok {
+		return mk, nil
+	}
+	return MalKeyword{}, NewTypeError("keyword", val)
 }
 
 type MalInt struct {
@@ -121,12 +159,26 @@ func (mi MalInt) String() string {
 	return strconv.Itoa(mi.Value)
 }
 
+func GetInt(val MalType) (MalInt, error) {
+	if mi, ok := val.(MalInt); ok {
+		return mi, nil
+	}
+	return MalInt{}, NewTypeError("int", val)
+}
+
 type MalBool struct {
 	Value bool
 }
 
 func (mb MalBool) String() string {
 	return strconv.FormatBool(mb.Value)
+}
+
+func GetBool(val MalType) (MalBool, error) {
+	if mb, ok := val.(MalBool); ok {
+		return mb, nil
+	}
+	return MalBool{}, NewTypeError("bool", val)
 }
 
 var MalTrue = MalBool{Value: true}
@@ -150,6 +202,11 @@ func IsTruthy(val MalType) bool {
 	default:
 		return true
 	}
+}
+
+func IsNil(val MalType) bool {
+	_, ok := val.(MalNil)
+	return ok
 }
 
 func GetFn(val MalType) (func([]MalType) (MalType, error), error) {
