@@ -21,20 +21,15 @@ func (env *Env) New(binds, exprs []MalType) (EnvType, error) {
 		if err != nil {
 			return nil, err
 		}
-		argName := sym.Value
-		var argValue MalType
-		switch argName {
-		case "&":
+		if sym.Value == "&" {
 			sym, err := GetSymbol(binds[i+1])
 			if err != nil {
 				return nil, err
 			}
-			argName = sym.Value
-			argValue = NewList(exprs[i:])
-		default:
-			argValue = exprs[i]
+			inner.Set(sym.Value, NewList(exprs[i:]))
+			break
 		}
-		inner.Set(argName, argValue)
+		inner.Set(sym.Value, exprs[i])
 	}
 	return &inner, nil
 }

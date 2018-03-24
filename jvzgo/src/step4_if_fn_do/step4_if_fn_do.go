@@ -170,9 +170,6 @@ func EVAL(ast MalType, env EnvType) (MalType, error) {
 				return nil, err
 			}
 			return func(args []MalType) (MalType, error) {
-				if len(binds) != len(args) {
-					return nil, fmt.Errorf("invalid number of args; binds: %v; args: %v", binds, args)
-				}
 				inner, err := env.New(binds, args)
 				if err != nil {
 					return nil, err
