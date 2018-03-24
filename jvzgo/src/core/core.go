@@ -7,161 +7,115 @@ import (
 	. "types"
 )
 
+func monoFunc(f func(MalType) MalType) func([]MalType) (MalType, error) {
+	return monoErrFunc(func(a MalType) (MalType, error) {
+		return f(a), nil
+	})
+}
+
+func monoErrFunc(f func(MalType) (MalType, error)) func([]MalType) (MalType, error) {
+	return func(args []MalType) (MalType, error) {
+		if len(args) != 1 {
+			return nil, fmt.Errorf("invalid args: %v", args)
+		}
+		return f(args[0])
+	}
+}
+
+func biFunc(f func(MalType, MalType) MalType) func([]MalType) (MalType, error) {
+	return biErrFunc(func(a MalType, b MalType) (MalType, error) {
+		return f(a, b), nil
+	})
+}
+
+func biErrFunc(f func(MalType, MalType) (MalType, error)) func([]MalType) (MalType, error) {
+	return func(args []MalType) (MalType, error) {
+		if len(args) != 2 {
+			return nil, fmt.Errorf("invalid args: %v", args)
+		}
+		return f(args[0], args[1])
+	}
+}
+
+func intBiFunc(f func(int, int) int) func([]MalType) (MalType, error) {
+	return biErrFunc(func(a1 MalType, a2 MalType) (MalType, error) {
+		a, err := GetInt(a1)
+		if err != nil {
+			return nil, err
+		}
+		b, err := GetInt(a2)
+		if err != nil {
+			return nil, err
+		}
+		return MalInt{Value: f(a.Value, b.Value)}, nil
+	})
+}
+
+func intBiPred(f func(int, int) bool) func([]MalType) (MalType, error) {
+	return biErrFunc(func(a1 MalType, a2 MalType) (MalType, error) {
+		a, err := GetInt(a1)
+		if err != nil {
+			return nil, err
+		}
+		b, err := GetInt(a2)
+		if err != nil {
+			return nil, err
+		}
+		return MalBool{Value: f(a.Value, b.Value)}, nil
+	})
+}
+
 var NS = map[string]MalType{
-	`+`: func(args []MalType) (MalType, error) {
-		if len(args) != 2 {
-			return raiseInvalid(`+`, args)
-		}
-		a, ok := args[0].(MalInt)
-		if !ok {
-			return RaiseTypeError("int", args[0])
-		}
-		b, ok := args[1].(MalInt)
-		if !ok {
-			return RaiseTypeError("int", args[1])
-		}
-		return MalInt{Value: a.Value + b.Value}, nil
-	},
-	`-`: func(args []MalType) (MalType, error) {
-		if len(args) != 2 {
-			return raiseInvalid(`-`, args)
-		}
-		a, ok := args[0].(MalInt)
-		if !ok {
-			return RaiseTypeError("int", args[0])
-		}
-		b, ok := args[1].(MalInt)
-		if !ok {
-			return RaiseTypeError("int", args[1])
-		}
-		return MalInt{Value: a.Value - b.Value}, nil
-	},
-	`*`: func(args []MalType) (MalType, error) {
-		if len(args) != 2 {
-			return raiseInvalid(`*`, args)
-		}
-		a, ok := args[0].(MalInt)
-		if !ok {
-			return RaiseTypeError("int", args[0])
-		}
-		b, ok := args[1].(MalInt)
-		if !ok {
-			return RaiseTypeError("int", args[1])
-		}
-		return MalInt{Value: a.Value * b.Value}, nil
-	},
-	`/`: func(args []MalType) (MalType, error) {
-		if len(args) != 2 {
-			return raiseInvalid(`/`, args)
-		}
-		a, ok := args[0].(MalInt)
-		if !ok {
-			return RaiseTypeError("int", args[0])
-		}
-		b, ok := args[1].(MalInt)
-		if !ok {
-			return RaiseTypeError("int", args[1])
-		}
-		return MalInt{Value: a.Value / b.Value}, nil
-	},
+	`+`: intBiFunc(func(a int, b int) int {
+		return a + b
+	}),
+	`-`: intBiFunc(func(a int, b int) int {
+		return a - b
+	}),
+	`*`: intBiFunc(func(a int, b int) int {
+		return a * b
+	}),
+	`/`: intBiFunc(func(a int, b int) int {
+		return a / b
+	}),
 	`list`: func(args []MalType) (MalType, error) {
 		return MalList{Value: args, StartStr: "(", EndStr: ")"}, nil
 	},
-	`list?`: func(args []MalType) (MalType, error) {
-		if len(args) != 1 {
-			return raiseInvalid(`list?`, args)
-		}
-		return MalBool{Value: IsList(args[0])}, nil
-	},
-	`empty?`: func(args []MalType) (MalType, error) {
-		if len(args) != 1 {
-			return raiseInvalid(`empty?`, args)
-		}
-		list, err := GetSlice(args[0])
+	`list?`: monoFunc(func(a MalType) MalType {
+		return MalBool{Value: IsList(a)}
+	}),
+	`empty?`: monoErrFunc(func(a MalType) (MalType, error) {
+		list, err := GetSlice(a)
 		if err != nil {
 			return nil, err
 		}
 		return MalBool{Value: len(list) == 0}, nil
-	},
-	`count`: func(args []MalType) (MalType, error) {
-		if len(args) != 1 {
-			return raiseInvalid(`count`, args)
-		}
-		switch arg := args[0].(type) {
-		case MalList:
-			return MalInt{Value: len(arg.Value)}, nil
+	}),
+	`count`: monoErrFunc(func(a MalType) (MalType, error) {
+		switch arg := a.(type) {
 		case MalNil:
 			return MalInt{Value: 0}, nil
+		case MalList:
+			return MalInt{Value: len(arg.Value)}, nil
 		default:
 			return RaiseTypeError("list", arg)
 		}
-	},
-	`=`: func(args []MalType) (MalType, error) {
-		if len(args) != 2 {
-			return raiseInvalid(`=`, args)
-		}
-		if equal(args[0], args[1]) {
-			return MalTrue, nil
-		} else {
-			return MalFalse, nil
-		}
-	},
-	`<`: func(args []MalType) (MalType, error) {
-		if len(args) != 2 {
-			return raiseInvalid(`<`, args)
-		}
-		a, ok := args[0].(MalInt)
-		if !ok {
-			return RaiseTypeError("int", args[0])
-		}
-		b, ok := args[1].(MalInt)
-		if !ok {
-			return RaiseTypeError("int", args[1])
-		}
-		return MalBool{Value: a.Value < b.Value}, nil
-	},
-	`<=`: func(args []MalType) (MalType, error) {
-		if len(args) != 2 {
-			return raiseInvalid(`<=`, args)
-		}
-		a, ok := args[0].(MalInt)
-		if !ok {
-			return RaiseTypeError("int", args[0])
-		}
-		b, ok := args[1].(MalInt)
-		if !ok {
-			return RaiseTypeError("int", args[1])
-		}
-		return MalBool{Value: a.Value <= b.Value}, nil
-	},
-	`>`: func(args []MalType) (MalType, error) {
-		if len(args) != 2 {
-			return raiseInvalid(`>`, args)
-		}
-		a, ok := args[0].(MalInt)
-		if !ok {
-			return RaiseTypeError("int", args[0])
-		}
-		b, ok := args[1].(MalInt)
-		if !ok {
-			return RaiseTypeError("int", args[1])
-		}
-		return MalBool{Value: a.Value > b.Value}, nil
-	},
-	`>=`: func(args []MalType) (MalType, error) {
-		if len(args) != 2 {
-			return raiseInvalid(`>=`, args)
-		}
-		a, ok := args[0].(MalInt)
-		if !ok {
-			return RaiseTypeError("int", args[0])
-		}
-		b, ok := args[1].(MalInt)
-		if !ok {
-			return RaiseTypeError("int", args[1])
-		}
-		return MalBool{Value: a.Value >= b.Value}, nil
-	},
+	}),
+	`=`: biFunc(func(a MalType, b MalType) MalType {
+		return MalBool{Value: equal(a, b)}
+	}),
+	`<`: intBiPred(func(a int, b int) bool {
+		return a < b
+	}),
+	`<=`: intBiPred(func(a int, b int) bool {
+		return a <= b
+	}),
+	`>`: intBiPred(func(a int, b int) bool {
+		return a > b
+	}),
+	`>=`: intBiPred(func(a int, b int) bool {
+		return a >= b
+	}),
 	`pr-str`: func(args []MalType) (MalType, error) {
 		prints := make([]string, len(args))
 		for i, arg := range args {
@@ -195,10 +149,6 @@ var NS = map[string]MalType{
 		fmt.Println(strings.Join(prints, " "))
 		return MalNil{}, nil
 	},
-}
-
-func raiseInvalid(sym string, args []MalType) (MalType, error) {
-	return nil, fmt.Errorf("%v invalid args: %v", sym, args)
 }
 
 func equal(a, b MalType) bool {
