@@ -2,7 +2,8 @@ package main
 
 import (
 	"bufio"
-	"env"
+	"core"
+	. "env"
 	"errors"
 	"fmt"
 	"os"
@@ -18,68 +19,15 @@ func READ(str string) (MalType, error) {
 
 var replEnv = newReplEnv()
 
-func newReplEnv() env.Env {
-	var e env.Env
-	e.Set(`+`, func(args []MalType) (MalType, error) {
-		if len(args) != 2 {
-			return nil, errors.New("invalid args")
-		}
-		a, ok := args[0].(MalInt)
-		if !ok {
-			return RaiseTypeError("int", args[0])
-		}
-		b, ok := args[1].(MalInt)
-		if !ok {
-			return RaiseTypeError("int", args[1])
-		}
-		return MalInt{Value: a.Value + b.Value}, nil
-	})
-	e.Set(`-`, func(args []MalType) (MalType, error) {
-		if len(args) != 2 {
-			return nil, errors.New("invalid args")
-		}
-		a, ok := args[0].(MalInt)
-		if !ok {
-			return RaiseTypeError("int", args[0])
-		}
-		b, ok := args[1].(MalInt)
-		if !ok {
-			return RaiseTypeError("int", args[1])
-		}
-		return MalInt{Value: a.Value - b.Value}, nil
-	})
-	e.Set(`*`, func(args []MalType) (MalType, error) {
-		if len(args) != 2 {
-			return nil, errors.New("invalid args")
-		}
-		a, ok := args[0].(MalInt)
-		if !ok {
-			return RaiseTypeError("int", args[0])
-		}
-		b, ok := args[1].(MalInt)
-		if !ok {
-			return RaiseTypeError("int", args[1])
-		}
-		return MalInt{Value: a.Value * b.Value}, nil
-	})
-	e.Set(`/`, func(args []MalType) (MalType, error) {
-		if len(args) != 2 {
-			return nil, errors.New("invalid args")
-		}
-		a, ok := args[0].(MalInt)
-		if !ok {
-			return RaiseTypeError("int", args[0])
-		}
-		b, ok := args[1].(MalInt)
-		if !ok {
-			return RaiseTypeError("int", args[1])
-		}
-		return MalInt{Value: a.Value / b.Value}, nil
-	})
-	return e
+func newReplEnv() EnvType {
+	env := NewEnv()
+	for sym, fn := range core.NS {
+		env.Set(sym, fn)
+	}
+	return env
 }
 
-func evalAst(ast MalType, env env.Env) (MalType, error) {
+func evalAst(ast MalType, env EnvType) (MalType, error) {
 	switch ast := ast.(type) {
 	case MalSymbol:
 		return env.Get(ast.Value)
@@ -108,27 +56,42 @@ func evalAst(ast MalType, env env.Env) (MalType, error) {
 	}
 }
 
-func EVAL(ast MalType, env env.Env) (MalType, error) {
+func EVAL(ast MalType, env EnvType) (MalType, error) {
+	//fmt.Println(ast)
 	switch {
 	case IsList(ast):
 		list := ast.(MalList).Value
 		if len(list) == 0 {
 			return ast, nil
 		}
-		sym, ok := list[0].(MalSymbol)
-		if !ok {
-			return RaiseTypeError("symbol", list[0])
+		sym := "__<*fn*>__"
+		if s, ok := list[0].(MalSymbol); ok {
+			sym = s.Value
 		}
-		switch sym.Value {
+		var a1 MalType
+		var a2 MalType
+		switch len(list) {
+		case 1:
+			a1 = nil
+			a2 = nil
+		case 2:
+			a1 = list[1]
+			a2 = nil
+		default:
+			a1 = list[1]
+			a2 = list[2]
+		}
+		switch sym {
 		case "def!":
+			// define a symbol in the given env
 			if len(list) != 3 {
 				return nil, fmt.Errorf("def! invalid args: %v", list)
 			}
-			key, ok := list[1].(MalSymbol)
-			if !ok {
-				return RaiseTypeError("symbol", list[1])
+			key, err := GetSymbol(a1)
+			if err != nil {
+				return nil, err
 			}
-			val, err := EVAL(list[2], env)
+			val, err := EVAL(a2, env)
 			if err != nil {
 				return nil, err
 			}
@@ -136,21 +99,25 @@ func EVAL(ast MalType, env env.Env) (MalType, error) {
 			return val, nil
 
 		case "let*":
+			// create an inner env with ordered bindings and apply it to an expression
 			if len(list) != 3 {
 				return nil, fmt.Errorf("let* invalid args: %v", list)
 			}
-			binds, err := GetSlice(list[1])
+			binds, err := GetSlice(a1)
 			if err != nil {
 				return nil, err
 			}
 			if len(binds)&1 == 1 {
 				return nil, errors.New("odd number of binds provided to let*")
 			}
-			inner := env.Inner()
+			inner, err := env.New(nil, nil)
+			if err != nil {
+				return nil, err
+			}
 			for i := 0; i < len(binds); i += 2 {
-				sym, ok := binds[i].(MalSymbol)
-				if !ok {
-					return RaiseTypeError("symbol", binds[i])
+				sym, err := GetSymbol(binds[i])
+				if err != nil {
+					return nil, err
 				}
 				expr, err := EVAL(binds[i+1], inner)
 				if err != nil {
@@ -158,19 +125,76 @@ func EVAL(ast MalType, env env.Env) (MalType, error) {
 				}
 				inner.Set(sym.Value, expr)
 			}
-			return EVAL(list[2], inner)
+			return EVAL(a2, inner)
+
+		case "do":
+			// evaluate all arguments and return the last one's result
+			eval, err := evalAst(NewList(list[1:]), env)
+			if err != nil {
+				return nil, err
+			}
+			evals, err := GetSlice(eval)
+			if err != nil {
+				return nil, err
+			}
+			if len(evals) == 0 {
+				return MalNil{}, nil
+			}
+			return evals[len(evals)-1], nil
+
+		case "if":
+			// check first arg, if not nil or false, evaluates and returns second arg
+			// otherwise, the third arg is evaluated and returned if provided or nil otherwise
+			if len(list) < 3 || len(list) > 4 {
+				return nil, fmt.Errorf("if invalid args: %v", list)
+			}
+			expr, err := EVAL(a1, env)
+			if err != nil {
+				return nil, err
+			}
+			if IsTruthy(expr) {
+				return EVAL(a2, env)
+			}
+			if len(list) < 4 {
+				return MalNil{}, nil
+			}
+			return EVAL(list[3], env)
+
+		case "fn*":
+			// create a new function closure
+			if len(list) != 3 {
+				return nil, fmt.Errorf("fn* invalid args: %v", list)
+			}
+			binds, err := GetSlice(a1)
+			if err != nil {
+				return nil, err
+			}
+			return func(args []MalType) (MalType, error) {
+				if len(binds) != len(args) {
+					return nil, fmt.Errorf("invalid number of args; binds: %v; args: %v", binds, args)
+				}
+				inner, err := env.New(binds, args)
+				if err != nil {
+					return nil, err
+				}
+				return EVAL(a2, inner)
+			}, nil
 
 		default:
+			// evaluate functions
 			eval, err := evalAst(ast, env)
 			if err != nil {
 				return nil, err
 			}
-			list = eval.(MalList).Value
-			fn, ok := list[0].(func([]MalType) (MalType, error))
-			if !ok {
-				return RaiseTypeError("function", list[0])
+			evals, err := GetSlice(eval)
+			if err != nil {
+				return nil, err
 			}
-			return fn(list[1:])
+			fn, err := GetFn(evals[0])
+			if err != nil {
+				return nil, err
+			}
+			return fn(evals[1:])
 		}
 
 	default:
@@ -195,6 +219,7 @@ func rep(str string) (string, error) {
 }
 
 func main() {
+	rep(`(def! not (fn* (a) (if a false true)))`)
 	in := bufio.NewScanner(os.Stdin)
 	for {
 		fmt.Print("user> ")

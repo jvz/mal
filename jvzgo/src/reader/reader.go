@@ -1,12 +1,9 @@
 package reader
 
 import (
-	"regexp"
-)
-
-import (
 	"errors"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 	. "types"
@@ -14,15 +11,14 @@ import (
 
 func ReadStr(str string) (MalType, error) {
 	tr := NewReader(str)
-	return tr.readForm()
+	return tr.ReadForm()
 }
 
 type Reader interface {
-	Next() *string
-	Peek() *string
+	ReadForm() (MalType, error)
 }
 
-var tokenPattern = regexp.MustCompile("[\\s,]*(~@|[\\[\\]{}()'`~^@]|\"(?:\\\\.|[^\\\\\"])*\"|;.*|[^\\s\\[\\]{}('\"`,;)]*)")
+var tokenPattern = regexp.MustCompile(`[\s,]*(~@|[\[\]{}()'` + "`" + `~^@]|"(?:\\.|[^\\"])*"|;.*|[^\s\[\]{}('"` + "`" + `,;)]*)`)
 
 func tokenizer(str string) []string {
 	tokens := make([]string, 0, 1)
@@ -47,7 +43,7 @@ type TokenReader struct {
 	tokens []string
 }
 
-func (tr *TokenReader) Next() *string {
+func (tr *TokenReader) next() *string {
 	if len(tr.tokens) == 0 {
 		return nil
 	}
@@ -56,17 +52,17 @@ func (tr *TokenReader) Next() *string {
 	return next
 }
 
-func (tr *TokenReader) Peek() *string {
+func (tr *TokenReader) peek() *string {
 	if len(tr.tokens) == 0 {
 		return nil
 	}
 	return &tr.tokens[0]
 }
 
-func (tr *TokenReader) readForm() (MalType, error) {
-	tok := tr.Peek()
+func (tr *TokenReader) ReadForm() (MalType, error) {
+	tok := tr.peek()
 	if tok == nil {
-		return nil, errors.New("readForm underflow")
+		return nil, errors.New("ReadForm underflow")
 	}
 	switch *tok {
 	case "(":
@@ -109,7 +105,7 @@ var stringEscapesReplacer = strings.NewReplacer(`\"`, `"`, `\n`, "\n", `\\`, `\`
 var intPattern = regexp.MustCompile(`^-?[0-9]+$`)
 
 func (tr *TokenReader) readAtom() (MalType, error) {
-	tok := tr.Next()
+	tok := tr.next()
 	if tok == nil {
 		return nil, errors.New("readAtom underflow")
 	}
@@ -121,6 +117,9 @@ func (tr *TokenReader) readAtom() (MalType, error) {
 		}
 		contents := stringEscapesReplacer.Replace((*tok)[1:end])
 		return MalString{Value: contents}, nil
+	case (*tok)[0] == ':':
+		keyword := (*tok)[1:]
+		return MalKeyword{Value: keyword}, nil
 	case intPattern.MatchString(*tok):
 		i, err := strconv.Atoi(*tok)
 		if err != nil {
@@ -131,58 +130,58 @@ func (tr *TokenReader) readAtom() (MalType, error) {
 	}
 	switch *tok {
 	case "'":
-		form, err := tr.readForm()
+		form, err := tr.ReadForm()
 		if err != nil {
 			return nil, err
 		}
-		return NewList(MalSymbol{Value: "quote"}, form), nil
+		return NewListOf(MalSymbol{Value: "quote"}, form), nil
 	case "`":
-		form, err := tr.readForm()
+		form, err := tr.ReadForm()
 		if err != nil {
 			return nil, err
 		}
-		return NewList(MalSymbol{Value: "quasiquote"}, form), nil
+		return NewListOf(MalSymbol{Value: "quasiquote"}, form), nil
 	case "~":
-		form, err := tr.readForm()
+		form, err := tr.ReadForm()
 		if err != nil {
 			return nil, err
 		}
-		return NewList(MalSymbol{Value: "unquote"}, form), nil
+		return NewListOf(MalSymbol{Value: "unquote"}, form), nil
 	case "~@":
-		form, err := tr.readForm()
+		form, err := tr.ReadForm()
 		if err != nil {
 			return nil, err
 		}
-		return NewList(MalSymbol{Value: "splice-unquote"}, form), nil
+		return NewListOf(MalSymbol{Value: "splice-unquote"}, form), nil
 	case "^":
-		meta, err := tr.readForm()
+		meta, err := tr.ReadForm()
 		if err != nil {
 			return nil, err
 		}
-		form, err := tr.readForm()
+		form, err := tr.ReadForm()
 		if err != nil {
 			return nil, err
 		}
-		return NewList(MalSymbol{Value: "with-meta"}, form, meta), nil
+		return NewListOf(MalSymbol{Value: "with-meta"}, form, meta), nil
 	case "@":
-		form, err := tr.readForm()
+		form, err := tr.ReadForm()
 		if err != nil {
 			return nil, err
 		}
-		return NewList(MalSymbol{Value: "deref"}, form), nil
+		return NewListOf(MalSymbol{Value: "deref"}, form), nil
 	case "nil":
-		return MalNilVal, nil
+		return MalNil{}, nil
 	case "true":
-		return MalTrueVal, nil
+		return MalTrue, nil
 	case "false":
-		return MalFalseVal, nil
+		return MalFalse, nil
 	default:
 		return MalSymbol{Value: *tok}, nil
 	}
 }
 
 func (tr *TokenReader) readList(start, end string) ([]MalType, error) {
-	tok := tr.Next() // (
+	tok := tr.next() // (
 	if tok == nil {
 		return nil, errors.New("readList underflow")
 	}
@@ -191,19 +190,19 @@ func (tr *TokenReader) readList(start, end string) ([]MalType, error) {
 	}
 	list := make([]MalType, 0, 1)
 	for {
-		tok = tr.Peek()
+		tok = tr.peek()
 		if tok == nil {
 			return nil, fmt.Errorf("expected %s", end)
 		}
 		if *tok == end {
 			break
 		}
-		form, err := tr.readForm()
+		form, err := tr.ReadForm()
 		if err != nil {
 			return nil, err
 		}
 		list = append(list, form)
 	}
-	tr.Next() // )
+	tr.next() // )
 	return list, nil
 }

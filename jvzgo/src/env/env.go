@@ -6,8 +6,37 @@ import (
 )
 
 type Env struct {
-	outer *Env
+	outer EnvType
 	data  map[string]MalType
+}
+
+func NewEnv() EnvType {
+	return &Env{data: make(map[string]MalType)}
+}
+
+func (env *Env) New(binds, exprs []MalType) (EnvType, error) {
+	inner := Env{outer: env, data: make(map[string]MalType)}
+	for i := 0; i < len(binds); i++ {
+		sym, err := GetSymbol(binds[i])
+		if err != nil {
+			return nil, err
+		}
+		argName := sym.Value
+		var argValue MalType
+		switch argName {
+		case "&":
+			sym, err := GetSymbol(binds[i+1])
+			if err != nil {
+				return nil, err
+			}
+			argName = sym.Value
+			argValue = NewList(exprs[i:])
+		default:
+			argValue = exprs[i]
+		}
+		inner.Set(argName, argValue)
+	}
+	return &inner, nil
 }
 
 func (env *Env) Set(key string, val MalType) {
@@ -17,23 +46,20 @@ func (env *Env) Set(key string, val MalType) {
 	env.data[key] = val
 }
 
-func (env *Env) Find(key string) (MalType, bool) {
-	if env == nil {
-		return nil, false
+func (env *Env) Find(key string) EnvType {
+	if _, ok := env.data[key]; ok {
+		return env
+	} else if env.outer != nil {
+		return env.outer.Find(key)
+	} else {
+		return nil
 	}
-	if val, ok := env.data[key]; ok {
-		return val, true
-	}
-	return env.outer.Find(key)
 }
 
 func (env *Env) Get(key string) (MalType, error) {
-	if val, ok := env.Find(key); ok {
-		return val, nil
+	e := env.Find(key)
+	if e == nil {
+		return nil, fmt.Errorf("unknown key: %v", key)
 	}
-	return nil, fmt.Errorf("unknown key: %v", key)
-}
-
-func (env *Env) Inner() Env {
-	return Env{outer: env}
+	return e.(*Env).data[key], nil
 }

@@ -33,6 +33,8 @@ func PrintStr(obj MalType, printReadably bool) string {
 		} else {
 			return o.Value
 		}
+	case MalKeyword:
+		return ":" + o.Value
 	case MalBool:
 		if o.Value {
 			return "true"
@@ -44,7 +46,8 @@ func PrintStr(obj MalType, printReadably bool) string {
 	case func([]MalType) (MalType, error):
 		return fmt.Sprintf("#<%v>", o)
 	default:
-		return fmt.Sprintf("%v", o)
+		return "unknown!"
+		//return fmt.Sprintf("%v", o)
 	}
 }
 
