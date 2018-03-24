@@ -167,6 +167,19 @@ func EVAL(ast MalType, env EnvType) (MalType, error) {
 				}
 				return MalFunc{Eval: EVAL, Binds: binds, Expr: a2, Env: env}, nil
 
+			case "quote":
+				if len(list) != 2 {
+					return nil, fmt.Errorf("quote invalid args: %v", list)
+				}
+				return a1, nil
+
+			case "quasiquote":
+				if len(list) != 2 {
+					return nil, fmt.Errorf("quasiquote invalid args: %v", list)
+				}
+				ast = quasiquote(a1)
+				continue
+
 			default:
 				// evaluate functions
 				eval, err := evalAst(ast, env)
@@ -188,6 +201,28 @@ func EVAL(ast MalType, env EnvType) (MalType, error) {
 			return evalAst(ast, env)
 		}
 	}
+}
+
+func isPair(val MalType) bool {
+	list, ok := val.(MalList)
+	return ok && len(list.Value) > 0
+}
+
+func quasiquote(ast MalType) MalType {
+	if !isPair(ast) {
+		return NewListOf(MalSymbol{Value: "quote"}, ast)
+	}
+	list, _ := GetSlice(ast)
+	if sym, ok := list[0].(MalSymbol); ok && sym.Value == "unquote" {
+		return list[1]
+	}
+	if isPair(list[0]) {
+		inner, _ := GetSlice(list[0])
+		if sym, ok := inner[0].(MalSymbol); ok && sym.Value == "splice-unquote" {
+			return NewListOf(MalSymbol{Value: "concat"}, inner[1], quasiquote(NewList(list[1:])))
+		}
+	}
+	return NewListOf(MalSymbol{Value: "cons"}, quasiquote(list[0]), quasiquote(NewList(list[1:])))
 }
 
 func PRINT(exp MalType) (string, error) {

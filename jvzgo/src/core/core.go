@@ -215,6 +215,27 @@ var NS = map[string]MalType{
 		atom.Set(res)
 		return res, nil
 	},
+	`cons`: BiErrFunc(func(a1 MalType, a2 MalType) (MalType, error) {
+		tail, err := GetSlice(a2)
+		if err != nil {
+			return nil, err
+		}
+		list := make([]MalType, len(tail)+1)
+		list[0] = a1
+		copy(list[1:], tail)
+		return NewList(list), nil
+	}),
+	`concat`: func(args []MalType) (MalType, error) {
+		concat := make([]MalType, 0, 1)
+		for _, arg := range args {
+			list, err := GetSlice(arg)
+			if err != nil {
+				return nil, err
+			}
+			concat = append(concat, list...)
+		}
+		return NewList(concat), nil
+	},
 }
 
 func equal(a, b MalType) bool {
@@ -251,8 +272,15 @@ func equal(a, b MalType) bool {
 			return false
 		}
 
+	case *MalAtom:
+		if b, ok := b.(*MalAtom); ok {
+			return equal(a.Value, b.Value)
+		} else {
+			return false
+		}
+
 	case MalSymbol:
-		if b, ok := b.(MalString); ok {
+		if b, ok := b.(MalSymbol); ok {
 			return a.Value == b.Value
 		} else {
 			return false
@@ -260,6 +288,13 @@ func equal(a, b MalType) bool {
 
 	case MalString:
 		if b, ok := b.(MalString); ok {
+			return a.Value == b.Value
+		} else {
+			return false
+		}
+
+	case MalKeyword:
+		if b, ok := b.(MalKeyword); ok {
 			return a.Value == b.Value
 		} else {
 			return false
