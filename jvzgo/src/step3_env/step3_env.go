@@ -18,8 +18,8 @@ func READ(str string) (MalType, error) {
 
 var replEnv = newReplEnv()
 
-func newReplEnv() env.Env {
-	var e env.Env
+func newReplEnv() EnvType {
+	e := env.NewEnv()
 	e.Set(`+`, func(args []MalType) (MalType, error) {
 		if len(args) != 2 {
 			return nil, errors.New("invalid args")
@@ -79,7 +79,7 @@ func newReplEnv() env.Env {
 	return e
 }
 
-func evalAst(ast MalType, env env.Env) (MalType, error) {
+func evalAst(ast MalType, env EnvType) (MalType, error) {
 	switch ast := ast.(type) {
 	case MalSymbol:
 		return env.Get(ast.Value)
@@ -108,7 +108,7 @@ func evalAst(ast MalType, env env.Env) (MalType, error) {
 	}
 }
 
-func EVAL(ast MalType, env env.Env) (MalType, error) {
+func EVAL(ast MalType, env EnvType) (MalType, error) {
 	switch {
 	case IsList(ast):
 		list := ast.(MalList).Value
@@ -146,7 +146,7 @@ func EVAL(ast MalType, env env.Env) (MalType, error) {
 			if len(binds)&1 == 1 {
 				return nil, errors.New("odd number of binds provided to let*")
 			}
-			inner := env.Inner()
+			inner, _ := env.New(nil, nil)
 			for i := 0; i < len(binds); i += 2 {
 				sym, ok := binds[i].(MalSymbol)
 				if !ok {
