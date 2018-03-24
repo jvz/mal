@@ -209,10 +209,30 @@ func IsNil(val MalType) bool {
 	return ok
 }
 
+type MalFunc struct {
+	Eval  func(MalType, EnvType) (MalType, error)
+	Binds []MalType
+	Expr  MalType
+	Env   EnvType
+}
+
+func (mf MalFunc) Fn() func([]MalType) (MalType, error) {
+	return func(args []MalType) (MalType, error) {
+		inner, err := mf.Env.New(mf.Binds, args)
+		if err != nil {
+			return nil, err
+		}
+		return mf.Eval(mf.Expr, inner)
+	}
+}
+
 func GetFn(val MalType) (func([]MalType) (MalType, error), error) {
-	if fn, ok := val.(func([]MalType) (MalType, error)); ok {
+	switch fn := val.(type) {
+	case MalFunc:
+		return fn.Fn(), nil
+	case func([]MalType) (MalType, error):
 		return fn, nil
-	} else {
+	default:
 		return nil, NewTypeError("function", val)
 	}
 }
