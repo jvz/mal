@@ -54,7 +54,7 @@ func (env *Env) Find(key string) EnvType {
 func (env *Env) Get(key string) (MalType, error) {
 	e := env.Find(key)
 	if e == nil {
-		return nil, fmt.Errorf("unknown key: %v", key)
+		return nil, fmt.Errorf("'%v' not found", key)
 	}
 	return e.(*Env).data[key], nil
 }
