@@ -1,6 +1,7 @@
 package printer
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 	. "types"
@@ -56,8 +57,7 @@ func PrintStr(obj MalType, printReadably bool) string {
 	case MalError:
 		return PrintStr(o.Value, printReadably)
 	default:
-		return "unknown!"
-		//return fmt.Sprint(o)
+		return fmt.Sprintf("#<unknown: %v>", o)
 	}
 }
 
