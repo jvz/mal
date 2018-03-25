@@ -9,6 +9,7 @@ import (
 	"printer"
 	"reader"
 	"strings"
+	"time"
 	. "types"
 )
 
@@ -327,6 +328,10 @@ var NS = map[string]MalType{
 	`false?`:   MonoPred(IsFalse),
 	`symbol?`:  MonoPred(IsSymbol),
 	`keyword?`: MonoPred(IsKeyword),
+	`string?`:  MonoPred(IsString),
+	`number?`:  MonoPred(IsInt),
+	`fn?`:      MonoPred(IsFn),
+	`macro?`:   MonoPred(IsMacro),
 	`list?`:    MonoPred(IsList),
 	`vector?`:  MonoPred(IsVec),
 	`map?`:     MonoPred(IsMap),
@@ -450,6 +455,67 @@ var NS = map[string]MalType{
 	}),
 	`meta`:      MonoErrFunc(GetMeta),
 	`with-meta`: BiErrFunc(WithMeta),
+	`time-ms`: func(args []MalType) (MalType, error) {
+		nanos := time.Duration(time.Now().UnixNano())
+		millis := nanos.Truncate(time.Millisecond).Nanoseconds() / int64(time.Millisecond)
+		return MalInt{Value: int(millis)}, nil
+	},
+	`conj`: func(args []MalType) (MalType, error) {
+		switch {
+		case len(args) < 2:
+			return nil, fmt.Errorf("conj invalid args: %v", args)
+		case IsList(args[0]):
+			list, _ := GetSlice(args[0])
+			conj := make([]MalType, 0, len(list)+len(args)-1)
+			for i := len(args) - 1; i > 0; i-- {
+				conj = append(conj, args[i])
+			}
+			conj = append(conj, list...)
+			return NewList(conj), nil
+		case IsVec(args[0]):
+			vec, _ := GetSlice(args[0])
+			conj := make([]MalType, 0, len(vec)+len(args)-1)
+			conj = append(conj, vec...)
+			conj = append(conj, args[1:]...)
+			return NewVec(conj), nil
+		case IsNil(args[0]):
+			return NewList(args[1:]), nil
+		default:
+			return RaiseTypeError("collection", args[0])
+		}
+	},
+	`seq`: MonoErrFunc(func(a MalType) (MalType, error) {
+		switch {
+		case IsNil(a):
+			return MalNil{}, nil
+		case IsList(a):
+			list, _ := GetSlice(a)
+			if len(list) == 0 {
+				return MalNil{}, nil
+			}
+			return a, nil
+		case IsVec(a):
+			list, _ := GetSlice(a)
+			if len(list) == 0 {
+				return MalNil{}, nil
+			}
+			return NewList(list), nil
+		case IsString(a):
+			str := a.(MalString).Value
+			if len(str) == 0 {
+				return MalNil{}, nil
+			}
+			r := strings.NewReader(str)
+			chars := make([]MalType, 0, len(str))
+			for ch, _, err := r.ReadRune(); err == nil; ch, _, err = r.ReadRune() {
+				char := fmt.Sprintf("%c", ch)
+				chars = append(chars, MalString{Value: char})
+			}
+			return NewList(chars), nil
+		default:
+			return RaiseTypeError("sequence", a)
+		}
+	}),
 }
 
 func equal(a, b MalType) bool {

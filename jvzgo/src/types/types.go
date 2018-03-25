@@ -353,6 +353,26 @@ func GetFn(val MalType) (func([]MalType) (MalType, error), error) {
 	}
 }
 
+func IsFn(val MalType) bool {
+	switch val.(type) {
+	case MalFn:
+		return true
+	case MalFunc:
+		return true
+	case func([]MalType) (MalType, error):
+		return true
+	default:
+		return false
+	}
+}
+
+func IsMacro(val MalType) bool {
+	if fn, ok := val.(MalFunc); ok {
+		return fn.isMacro
+	}
+	return false
+}
+
 func GetMeta(val MalType) (MalType, error) {
 	switch fn := val.(type) {
 	case MalFn:
