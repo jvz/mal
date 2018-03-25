@@ -233,10 +233,11 @@ func IsNil(val MalType) bool {
 }
 
 type MalFunc struct {
-	Eval  func(MalType, EnvType) (MalType, error)
-	Binds []MalType
-	Expr  MalType
-	Env   EnvType
+	Eval    func(MalType, EnvType) (MalType, error)
+	Binds   []MalType
+	Expr    MalType
+	Env     EnvType
+	isMacro bool
 }
 
 func (mf MalFunc) Fn() func([]MalType) (MalType, error) {
@@ -247,6 +248,14 @@ func (mf MalFunc) Fn() func([]MalType) (MalType, error) {
 		}
 		return mf.Eval(mf.Expr, inner)
 	}
+}
+
+func (mf *MalFunc) IsMacro() bool {
+	return mf.isMacro
+}
+
+func (mf *MalFunc) SetMacro(b bool) {
+	mf.isMacro = b
 }
 
 func GetFn(val MalType) (func([]MalType) (MalType, error), error) {

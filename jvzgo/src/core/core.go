@@ -236,6 +236,47 @@ var NS = map[string]MalType{
 		}
 		return NewList(concat), nil
 	},
+	`nth`: BiErrFunc(func(a1 MalType, a2 MalType) (MalType, error) {
+		list, err := GetSlice(a1)
+		if err != nil {
+			return nil, err
+		}
+		index, err := GetInt(a2)
+		if err != nil {
+			return nil, err
+		}
+		i := index.Value
+		if i < 0 || i >= len(list) {
+			return nil, fmt.Errorf("index out of ranges: %v", i)
+		}
+		return list[i], nil
+	}),
+	`first`: MonoErrFunc(func(a MalType) (MalType, error) {
+		switch list := a.(type) {
+		case MalNil:
+			return MalNil{}, nil
+		case MalList:
+			if len(list.Value) == 0 {
+				return MalNil{}, nil
+			}
+			return list.Value[0], nil
+		default:
+			return RaiseTypeError("list", a)
+		}
+	}),
+	`rest`: MonoErrFunc(func(a MalType) (MalType, error) {
+		switch list := a.(type) {
+		case MalNil:
+			return NewListOf(), nil
+		case MalList:
+			if len(list.Value) <= 1 {
+				return NewListOf(), nil
+			}
+			return NewList(list.Value[1:]), nil
+		default:
+			return RaiseTypeError("list", a)
+		}
+	}),
 }
 
 func equal(a, b MalType) bool {

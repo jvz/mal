@@ -1,7 +1,6 @@
 package printer
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 	. "types"
@@ -45,8 +44,13 @@ func PrintStr(obj MalType, printReadably bool) string {
 		}
 	case MalNil:
 		return "nil"
+	case MalFunc:
+		if o.IsMacro() {
+			return "#<macro>"
+		}
+		return "#<function>"
 	case func([]MalType) (MalType, error):
-		return fmt.Sprintf("#<%v>", o)
+		return "#<function>"
 	default:
 		return "unknown!"
 		//return fmt.Sprintf("%v", o)
