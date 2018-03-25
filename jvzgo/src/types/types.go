@@ -26,6 +26,7 @@ func RaiseTypeError(expectedType string, actual MalType) (MalType, error) {
 
 type MalError struct {
 	Value MalType
+	Meta  MalType
 }
 
 func (e MalError) Error() string {
@@ -34,6 +35,7 @@ func (e MalError) Error() string {
 
 type MalList struct {
 	Value    []MalType
+	Meta     MalType
 	startStr string
 	endStr   string
 }
@@ -112,6 +114,7 @@ func GetSlice(val MalType) ([]MalType, error) {
 
 type MalMap struct {
 	Value map[MalType]MalType
+	Meta  MalType
 }
 
 func GetMap(val MalType) (MalMap, error) {
@@ -136,6 +139,7 @@ func CopyMap(val MalMap) MalMap {
 
 type MalAtom struct {
 	value MalType
+	meta  MalType
 }
 
 func (ma *MalAtom) String() string {
@@ -148,6 +152,14 @@ func (ma *MalAtom) Value() MalType {
 
 func (ma *MalAtom) SetValue(val MalType) {
 	ma.value = val
+}
+
+func (ma *MalAtom) Meta() MalType {
+	return WrapNil(ma.meta)
+}
+
+func (ma *MalAtom) WithMeta(val MalType) *MalAtom {
+	return &MalAtom{value: ma.value, meta: val}
 }
 
 func NewAtom(val MalType) *MalAtom {
@@ -168,6 +180,7 @@ func IsAtom(val MalType) bool {
 
 type MalSymbol struct {
 	Value string
+	Meta  MalType
 }
 
 func (ms MalSymbol) String() string {
@@ -188,6 +201,7 @@ func IsSymbol(val MalType) bool {
 
 type MalString struct {
 	Value string
+	Meta  MalType
 }
 
 func (ms MalString) String() string {
@@ -208,6 +222,7 @@ func IsString(val MalType) bool {
 
 type MalKeyword struct {
 	Value string
+	Meta  MalType
 }
 
 func (mk MalKeyword) String() string {
@@ -228,6 +243,7 @@ func IsKeyword(val MalType) bool {
 
 type MalInt struct {
 	Value int
+	Meta  MalType
 }
 
 func (mi MalInt) String() string {
@@ -248,6 +264,7 @@ func IsInt(val MalType) bool {
 
 type MalBool struct {
 	Value bool
+	Meta  MalType
 }
 
 func (mb MalBool) String() string {
@@ -286,6 +303,13 @@ type MalNil struct {
 
 func (MalNil) String() string {
 	return "nil"
+}
+
+func WrapNil(val MalType) MalType {
+	if val == nil {
+		return MalNil{}
+	}
+	return val
 }
 
 func IsNil(val MalType) bool {
@@ -384,28 +408,66 @@ func IsMacro(val MalType) bool {
 	return false
 }
 
-func GetMeta(val MalType) (MalType, error) {
-	switch fn := val.(type) {
+func GetMeta(val MalType) MalType {
+	switch val := val.(type) {
+	case MalError:
+		return WrapNil(val.Meta)
+	case MalList:
+		return WrapNil(val.Meta)
+	case MalMap:
+		return WrapNil(val.Meta)
+	case *MalAtom:
+		return WrapNil(val.meta)
+	case MalSymbol:
+		return WrapNil(val.Meta)
+	case MalString:
+		return WrapNil(val.Meta)
+	case MalKeyword:
+		return WrapNil(val.Meta)
+	case MalInt:
+		return WrapNil(val.Meta)
+	case MalBool:
+		return WrapNil(val.Meta)
 	case MalFn:
-		return fn.meta, nil
+		return WrapNil(val.meta)
 	case MalFunc:
-		return fn.meta, nil
-	case func([]MalType) (MalType, error):
-		return MalNil{}, nil
+		return WrapNil(val.meta)
 	default:
-		return RaiseTypeError("function", val)
+		return MalNil{}
 	}
 }
 
 func WithMeta(val MalType, meta MalType) (MalType, error) {
-	switch fn := val.(type) {
+	switch val := val.(type) {
+	case MalError:
+		return MalError{Value: val.Value, Meta: meta}, nil
+	case MalList:
+		list := val.New(val.Value)
+		list.Meta = meta
+		return list, nil
+	case MalMap:
+		m := CopyMap(val)
+		m.Meta = meta
+		return m, nil
+	case *MalAtom:
+		return val.WithMeta(meta), nil
+	case MalSymbol:
+		return MalSymbol{Value: val.Value, Meta: meta}, nil
+	case MalString:
+		return MalString{Value: val.Value, Meta: meta}, nil
+	case MalKeyword:
+		return MalKeyword{Value: val.Value, Meta: meta}, nil
+	case MalInt:
+		return MalInt{Value: val.Value, Meta: meta}, nil
+	case MalBool:
+		return MalBool{Value: val.Value, Meta: meta}, nil
 	case MalFn:
-		return MalFn{fn: fn.fn, meta: meta}, nil
+		return MalFn{fn: val.fn, meta: meta}, nil
 	case MalFunc:
-		return MalFunc{eval: fn.eval, binds: fn.binds, expr: fn.expr, env: fn.env, meta: meta, isMacro: fn.isMacro}, nil
+		return MalFunc{eval: val.eval, binds: val.binds, expr: val.expr, env: val.env, meta: meta, isMacro: val.isMacro}, nil
 	case func([]MalType) (MalType, error):
-		return MalFn{fn: fn, meta: meta}, nil
+		return MalFn{fn: val, meta: meta}, nil
 	default:
-		return RaiseTypeError("function", val)
+		return RaiseTypeError("MalType", val)
 	}
 }

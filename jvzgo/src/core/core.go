@@ -453,7 +453,7 @@ var NS = map[string]MalType{
 		}
 		return MalNil{}, nil
 	}),
-	`meta`:      MonoErrFunc(GetMeta),
+	`meta`:      MonoFunc(GetMeta),
 	`with-meta`: BiErrFunc(WithMeta),
 	`time-ms`: func(args []MalType) (MalType, error) {
 		nanos := time.Duration(time.Now().UnixNano())
