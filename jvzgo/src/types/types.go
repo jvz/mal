@@ -135,19 +135,23 @@ func CopyMap(val MalMap) MalMap {
 }
 
 type MalAtom struct {
-	Value MalType
+	value MalType
 }
 
 func (ma *MalAtom) String() string {
-	return fmt.Sprint(ma.Value)
+	return fmt.Sprint(ma.value)
 }
 
-func (ma *MalAtom) Set(val MalType) {
-	ma.Value = val
+func (ma *MalAtom) Value() MalType {
+	return ma.value
+}
+
+func (ma *MalAtom) SetValue(val MalType) {
+	ma.value = val
 }
 
 func NewAtom(val MalType) *MalAtom {
-	return &MalAtom{Value: val}
+	return &MalAtom{value: val}
 }
 
 func GetAtom(val MalType) (*MalAtom, error) {

@@ -24,7 +24,7 @@ func PrintStr(obj MalType, printReadably bool) string {
 		}
 		return joinStrings(strs, "{", "}")
 	case *MalAtom:
-		return "(atom " + PrintStr(o.Value, printReadably) + ")"
+		return "(atom " + PrintStr(o.Value(), printReadably) + ")"
 	case MalInt:
 		return strconv.Itoa(o.Value)
 	case MalSymbol:

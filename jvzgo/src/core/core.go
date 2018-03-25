@@ -188,14 +188,14 @@ var NS = map[string]MalType{
 		if err != nil {
 			return nil, err
 		}
-		return atom.Value, nil
+		return atom.Value(), nil
 	}),
 	`reset!`: BiErrFunc(func(a1 MalType, a2 MalType) (MalType, error) {
 		atom, err := GetAtom(a1)
 		if err != nil {
 			return nil, err
 		}
-		atom.Set(a2)
+		atom.SetValue(a2)
 		return a2, nil
 	}),
 	`swap!`: func(args []MalType) (MalType, error) {
@@ -211,7 +211,7 @@ var NS = map[string]MalType{
 			return nil, err
 		}
 		fnArgs := make([]MalType, len(args)-1)
-		fnArgs[0] = atom.Value
+		fnArgs[0] = atom.Value()
 		if len(args) > 2 {
 			copy(fnArgs[1:], args[2:])
 		}
@@ -219,7 +219,7 @@ var NS = map[string]MalType{
 		if err != nil {
 			return nil, err
 		}
-		atom.Set(res)
+		atom.SetValue(res)
 		return res, nil
 	},
 	`cons`: BiErrFunc(func(a1 MalType, a2 MalType) (MalType, error) {
@@ -554,7 +554,7 @@ func equal(a, b MalType) bool {
 
 	case *MalAtom:
 		if b, ok := b.(*MalAtom); ok {
-			return equal(a.Value, b.Value)
+			return equal(a.Value(), b.Value())
 		} else {
 			return false
 		}
