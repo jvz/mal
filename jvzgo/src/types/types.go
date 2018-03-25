@@ -33,10 +33,9 @@ func (e MalError) Error() string {
 }
 
 type MalList struct {
-	Value []MalType
-	// TODO: make these unexported
-	StartStr string
-	EndStr   string
+	Value    []MalType
+	startStr string
+	endStr   string
 }
 
 func (ml MalList) String() string {
@@ -44,11 +43,19 @@ func (ml MalList) String() string {
 	for i, val := range ml.Value {
 		vals[i] = fmt.Sprint(val)
 	}
-	return ml.StartStr + strings.Join(vals, " ") + ml.EndStr
+	return ml.startStr + strings.Join(vals, " ") + ml.endStr
+}
+
+func (ml MalList) Surround(str string) string {
+	return ml.startStr + str + ml.endStr
+}
+
+func (ml MalList) New(value []MalType) MalList {
+	return MalList{Value: value, startStr: ml.startStr, endStr: ml.endStr}
 }
 
 func NewList(value []MalType) MalList {
-	return MalList{Value: value, StartStr: "(", EndStr: ")"}
+	return MalList{Value: value, startStr: "(", endStr: ")"}
 }
 
 func NewListOf(values ...MalType) MalList {
@@ -58,7 +65,7 @@ func NewListOf(values ...MalType) MalList {
 func IsList(val MalType) bool {
 	switch list := val.(type) {
 	case MalList:
-		return list.StartStr == "(" && list.EndStr == ")"
+		return list.startStr == "(" && list.endStr == ")"
 	default:
 		return false
 	}
@@ -72,7 +79,7 @@ func GetList(val MalType) (MalList, error) {
 }
 
 func NewVec(value []MalType) MalList {
-	return MalList{Value: value, StartStr: "[", EndStr: "]"}
+	return MalList{Value: value, startStr: "[", endStr: "]"}
 }
 
 func NewVecOf(values ...MalType) MalList {
@@ -82,7 +89,7 @@ func NewVecOf(values ...MalType) MalList {
 func IsVec(val MalType) bool {
 	switch list := val.(type) {
 	case MalList:
-		return list.StartStr == "[" && list.EndStr == "]"
+		return list.startStr == "[" && list.endStr == "]"
 	default:
 		return false
 	}

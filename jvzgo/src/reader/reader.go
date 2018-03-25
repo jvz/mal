@@ -70,7 +70,7 @@ func (tr *TokenReader) ReadForm() (MalType, error) {
 		if err != nil {
 			return nil, err
 		}
-		return MalList{Value: list, StartStr: "(", EndStr: ")"}, nil
+		return NewList(list), nil
 	case ")":
 		return nil, errors.New("unexpected )")
 	case "[":
@@ -78,7 +78,7 @@ func (tr *TokenReader) ReadForm() (MalType, error) {
 		if err != nil {
 			return nil, err
 		}
-		return MalList{Value: vec, StartStr: "[", EndStr: "]"}, nil
+		return NewVec(vec), nil
 	case "]":
 		return nil, errors.New("unexpected ]")
 	case "{":

@@ -40,7 +40,7 @@ func evalAst(ast MalType, env EnvType) (MalType, error) {
 			}
 			evals[i] = res
 		}
-		return MalList{Value: evals, StartStr: ast.StartStr, EndStr: ast.EndStr}, nil
+		return ast.New(evals), nil
 	case MalMap:
 		evals := make(map[MalType]MalType)
 		for k, v := range ast.Value {

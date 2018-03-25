@@ -14,7 +14,7 @@ func PrintStr(obj MalType, printReadably bool) string {
 		for i, val := range o.Value {
 			strs[i] = PrintStr(val, printReadably)
 		}
-		return joinStrings(strs, o.StartStr, o.EndStr)
+		return o.Surround(strings.Join(strs, " "))
 	case MalMap:
 		strs := make([]string, 0, len(o.Value)*2)
 		for k, v := range o.Value {

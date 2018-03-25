@@ -91,7 +91,7 @@ var NS = map[string]MalType{
 		return a / b
 	}),
 	`list`: func(args []MalType) (MalType, error) {
-		return MalList{Value: args, StartStr: "(", EndStr: ")"}, nil
+		return NewList(args), nil
 	},
 	`empty?`: MonoErrFunc(func(a MalType) (MalType, error) {
 		list, err := GetSlice(a)
