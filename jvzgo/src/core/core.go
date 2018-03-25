@@ -516,6 +516,9 @@ var NS = map[string]MalType{
 			return RaiseTypeError("sequence", a)
 		}
 	}),
+	`type-of`: MonoFunc(func(a MalType) MalType {
+		return MalString{Value: TypeName(a), Meta: a}
+	}),
 }
 
 func equal(a, b MalType) bool {

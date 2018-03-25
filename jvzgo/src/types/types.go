@@ -471,3 +471,43 @@ func WithMeta(val MalType, meta MalType) (MalType, error) {
 		return RaiseTypeError("MalType", val)
 	}
 }
+
+func TypeName(val MalType) string {
+	if val == nil {
+		return "go-nil"
+	}
+	switch val := val.(type) {
+	case MalError:
+		return "error"
+	case MalList:
+		if IsList(val) {
+			return "list"
+		}
+		return "vector"
+	case MalMap:
+		return "hash-map"
+	case *MalAtom:
+		return "atom"
+	case MalSymbol:
+		return "symbol"
+	case MalString:
+		return "string"
+	case MalKeyword:
+		return "keyword"
+	case MalInt:
+		return "number"
+	case MalBool:
+		return "bool"
+	case MalNil:
+		return "nil"
+	case MalFn, func([]MalType) (MalType, error):
+		return "builtin-function"
+	case MalFunc:
+		if val.isMacro {
+			return "macro"
+		}
+		return "function"
+	default:
+		return "unknown!"
+	}
+}
