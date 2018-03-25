@@ -165,7 +165,7 @@ func EVAL(ast MalType, env EnvType) (MalType, error) {
 				if err != nil {
 					return nil, err
 				}
-				return MalFunc{Eval: EVAL, Binds: binds, Expr: a2, Env: env}, nil
+				return NewFunc(EVAL, binds, a2, env), nil
 
 			default:
 				// evaluate functions

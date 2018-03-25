@@ -174,7 +174,7 @@ func EVAL(ast MalType, env EnvType) (MalType, error) {
 			if err != nil {
 				return nil, err
 			}
-			return MalFunc{Eval: EVAL, Binds: binds, Expr: a2, Env: env}, nil
+			return NewFunc(EVAL, binds, a2, env), nil
 
 		case "quote":
 			if len(list) != 2 {
@@ -345,6 +345,7 @@ func main() {
 	replEnv.Set("eval", core.MonoErrFunc(func(a MalType) (MalType, error) {
 		return EVAL(a, replEnv)
 	}))
+	replEnv.Set("*host-language*", MalString{Value: "jvzgo"})
 	rep(`(def! not (fn* (a) (if a false true)))`)
 	rep(`(def! load-file (fn* (f) (eval (read-string (str "(do " (slurp f) ")")))))`)
 	rep(`(defmacro! cond (fn* (& xs) (if (> (count xs) 0) (list 'if (first xs) (if (> (count xs) 1) (nth xs 1) (throw "odd number of forms to cond")) (cons 'cond (rest (rest xs)))))))`)
@@ -362,6 +363,7 @@ func main() {
 		return
 	}
 	replEnv.Set("*ARGV*", NewListOf())
+	rep(`(println (str "Mal [" *host-language* "]"))`)
 	in := bufio.NewScanner(os.Stdin)
 	for {
 		fmt.Print("user> ")

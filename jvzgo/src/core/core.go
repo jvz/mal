@@ -1,9 +1,11 @@
 package core
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"printer"
 	"reader"
 	"strings"
@@ -430,6 +432,24 @@ var NS = map[string]MalType{
 		_, ok := a.(MalList)
 		return ok
 	}),
+	`readline`: MonoErrFunc(func(a MalType) (MalType, error) {
+		prompt, err := GetString(a)
+		if err != nil {
+			return nil, err
+		}
+		fmt.Print(prompt.Value)
+		in := bufio.NewScanner(os.Stdin)
+		if in.Scan() {
+			line := strings.TrimSpace(in.Text())
+			return MalString{Value: line}, nil
+		}
+		if in.Err() != nil {
+			return nil, in.Err()
+		}
+		return MalNil{}, nil
+	}),
+	`meta`:      MonoErrFunc(GetMeta),
+	`with-meta`: BiErrFunc(WithMeta),
 }
 
 func equal(a, b MalType) bool {

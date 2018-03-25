@@ -293,21 +293,42 @@ func IsTruthy(val MalType) bool {
 	}
 }
 
+type MalFn struct {
+	fn   func([]MalType) (MalType, error)
+	meta MalType
+}
+
+func (MalFn) String() string {
+	return "#<function>"
+}
+
 type MalFunc struct {
-	Eval    func(MalType, EnvType) (MalType, error)
-	Binds   []MalType
-	Expr    MalType
-	Env     EnvType
+	eval    func(MalType, EnvType) (MalType, error)
+	binds   []MalType
+	expr    MalType
+	env     EnvType
+	meta    MalType
 	isMacro bool
+}
+
+func NewFunc(eval func(MalType, EnvType) (MalType, error), binds []MalType, expr MalType, env EnvType) MalFunc {
+	return MalFunc{eval: eval, binds: binds, expr: expr, env: env, meta: MalNil{}}
+}
+
+func (mf MalFunc) String() string {
+	if mf.isMacro {
+		return "#<macro>"
+	}
+	return "#<function>"
 }
 
 func (mf MalFunc) Fn() func([]MalType) (MalType, error) {
 	return func(args []MalType) (MalType, error) {
-		inner, err := mf.Env.New(mf.Binds, args)
+		inner, err := mf.env.New(mf.binds, args)
 		if err != nil {
 			return nil, err
 		}
-		return mf.Eval(mf.Expr, inner)
+		return mf.eval(mf.expr, inner)
 	}
 }
 
@@ -321,11 +342,39 @@ func (mf *MalFunc) SetMacro(b bool) {
 
 func GetFn(val MalType) (func([]MalType) (MalType, error), error) {
 	switch fn := val.(type) {
+	case MalFn:
+		return fn.fn, nil
 	case MalFunc:
 		return fn.Fn(), nil
 	case func([]MalType) (MalType, error):
 		return fn, nil
 	default:
 		return nil, NewTypeError("function", val)
+	}
+}
+
+func GetMeta(val MalType) (MalType, error) {
+	switch fn := val.(type) {
+	case MalFn:
+		return fn.meta, nil
+	case MalFunc:
+		return fn.meta, nil
+	case func([]MalType) (MalType, error):
+		return MalNil{}, nil
+	default:
+		return RaiseTypeError("function", val)
+	}
+}
+
+func WithMeta(val MalType, meta MalType) (MalType, error) {
+	switch fn := val.(type) {
+	case MalFn:
+		return MalFn{fn: fn.fn, meta: meta}, nil
+	case MalFunc:
+		return MalFunc{eval: fn.eval, binds: fn.binds, expr: fn.expr, env: fn.env, meta: meta, isMacro: fn.isMacro}, nil
+	case func([]MalType) (MalType, error):
+		return MalFn{fn: fn, meta: meta}, nil
+	default:
+		return RaiseTypeError("function", val)
 	}
 }

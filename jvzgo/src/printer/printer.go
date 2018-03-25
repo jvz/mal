@@ -44,6 +44,8 @@ func PrintStr(obj MalType, printReadably bool) string {
 		}
 	case MalNil:
 		return "nil"
+	case MalFn:
+		return "#<function>"
 	case MalFunc:
 		if o.IsMacro() {
 			return "#<macro>"
@@ -51,9 +53,11 @@ func PrintStr(obj MalType, printReadably bool) string {
 		return "#<function>"
 	case func([]MalType) (MalType, error):
 		return "#<function>"
+	case MalError:
+		return PrintStr(o.Value, printReadably)
 	default:
 		return "unknown!"
-		//return fmt.Sprintf("%v", o)
+		//return fmt.Sprint(o)
 	}
 }
 
