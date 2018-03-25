@@ -1,6 +1,7 @@
 package core
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"printer"
@@ -22,6 +23,12 @@ func MonoErrFunc(f func(MalType) (MalType, error)) func([]MalType) (MalType, err
 		}
 		return f(args[0])
 	}
+}
+
+func MonoPred(f func(MalType) bool) func([]MalType) (MalType, error) {
+	return MonoFunc(func(a MalType) MalType {
+		return MalBool{Value: f(a)}
+	})
 }
 
 func BiFunc(f func(MalType, MalType) MalType) func([]MalType) (MalType, error) {
@@ -83,9 +90,6 @@ var NS = map[string]MalType{
 	`list`: func(args []MalType) (MalType, error) {
 		return MalList{Value: args, StartStr: "(", EndStr: ")"}, nil
 	},
-	`list?`: MonoFunc(func(a MalType) MalType {
-		return MalBool{Value: IsList(a)}
-	}),
 	`empty?`: MonoErrFunc(func(a MalType) (MalType, error) {
 		list, err := GetSlice(a)
 		if err != nil {
@@ -276,6 +280,155 @@ var NS = map[string]MalType{
 		default:
 			return RaiseTypeError("list", a)
 		}
+	}),
+	`throw`: MonoErrFunc(func(a MalType) (MalType, error) {
+		return nil, MalError{Value: a}
+	}),
+	`apply`: func(args []MalType) (MalType, error) {
+		if len(args) < 2 {
+			return nil, fmt.Errorf("apply invalid args: %v", args)
+		}
+		fn, err := GetFn(args[0])
+		if err != nil {
+			return nil, err
+		}
+		last, err := GetSlice(args[len(args)-1])
+		if err != nil {
+			return nil, err
+		}
+		fnArgs := make([]MalType, len(last)+len(args)-2)
+		copy(fnArgs[:len(args)-2], args[1:len(args)-1])
+		copy(fnArgs[len(args)-2:], last)
+		return fn(fnArgs)
+	},
+	`map`: BiErrFunc(func(a1 MalType, a2 MalType) (MalType, error) {
+		fn, err := GetFn(a1)
+		if err != nil {
+			return nil, err
+		}
+		list, err := GetSlice(a2)
+		if err != nil {
+			return nil, err
+		}
+		ret := make([]MalType, len(list))
+		for i, v := range list {
+			res, err := fn([]MalType{v})
+			if err != nil {
+				return nil, err
+			}
+			ret[i] = res
+		}
+		return NewList(ret), nil
+	}),
+	`nil?`:     MonoPred(IsNil),
+	`true?`:    MonoPred(IsTrue),
+	`false?`:   MonoPred(IsFalse),
+	`symbol?`:  MonoPred(IsSymbol),
+	`keyword?`: MonoPred(IsKeyword),
+	`list?`:    MonoPred(IsList),
+	`vector?`:  MonoPred(IsVec),
+	`map?`:     MonoPred(IsMap),
+	`symbol`: MonoErrFunc(func(a MalType) (MalType, error) {
+		str, err := GetString(a)
+		if err != nil {
+			return nil, err
+		}
+		return MalSymbol{Value: str.Value}, nil
+	}),
+	`keyword`: MonoErrFunc(func(a MalType) (MalType, error) {
+		str, err := GetString(a)
+		if err != nil {
+			return nil, err
+		}
+		return MalKeyword{Value: str.Value}, nil
+	}),
+	`vector`: func(args []MalType) (MalType, error) {
+		return NewVec(args), nil
+	},
+	`hash-map`: func(args []MalType) (MalType, error) {
+		if len(args)&1 == 1 {
+			return nil, fmt.Errorf("hash-map invalid number of args: %v", args)
+		}
+		m := make(map[MalType]MalType)
+		for i := 0; i < len(args); i += 2 {
+			m[args[i]] = args[i+1]
+		}
+		return MalMap{Value: m}, nil
+	},
+	`assoc`: func(args []MalType) (MalType, error) {
+		if len(args)&1 != 1 {
+			return nil, fmt.Errorf("hash-map invalid number of args: %v", args)
+		}
+		m, err := GetMap(args[0])
+		if err != nil {
+			return nil, err
+		}
+		updated := CopyMap(m)
+		for i := 1; i < len(args); i += 2 {
+			updated.Value[args[i]] = args[i+1]
+		}
+		return updated, nil
+	},
+	`dissoc`: func(args []MalType) (MalType, error) {
+		if len(args) == 0 {
+			return nil, errors.New("dissoc invalid args")
+		}
+		m, err := GetMap(args[0])
+		if err != nil {
+			return nil, err
+		}
+		updated := CopyMap(m)
+		for _, key := range args[1:] {
+			delete(updated.Value, key)
+		}
+		return updated, nil
+	},
+	`get`: BiErrFunc(func(a1 MalType, a2 MalType) (MalType, error) {
+		if IsNil(a1) {
+			return MalNil{}, nil
+		}
+		m, err := GetMap(a1)
+		if err != nil {
+			return nil, err
+		}
+		if val, ok := m.Value[a2]; ok {
+			return val, nil
+		}
+		return MalNil{}, nil
+	}),
+	`contains?`: BiErrFunc(func(a1 MalType, a2 MalType) (MalType, error) {
+		m, err := GetMap(a1)
+		if err != nil {
+			return nil, err
+		}
+		_, ok := m.Value[a2]
+		return MalBool{Value: ok}, nil
+	}),
+	`keys`: MonoErrFunc(func(a MalType) (MalType, error) {
+		m, err := GetMap(a)
+		if err != nil {
+			return nil, err
+		}
+		keys := make([]MalType, 0, len(m.Value))
+		for key := range m.Value {
+			keys = append(keys, key)
+		}
+		return NewList(keys), nil
+	}),
+	`vals`: MonoErrFunc(func(a MalType) (MalType, error) {
+		m, err := GetMap(a)
+		if err != nil {
+			return nil, err
+		}
+		vals := make([]MalType, 0, len(m.Value))
+		for _, val := range m.Value {
+			vals = append(vals, val)
+		}
+		return NewList(vals), nil
+	}),
+	`sequential?`: MonoPred(func(a MalType) bool {
+		_, ok := a.(MalList)
+		return ok
 	}),
 }
 

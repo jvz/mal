@@ -213,6 +213,41 @@ func EVAL(ast MalType, env EnvType) (MalType, error) {
 		case "macroexpand":
 			return macroexpand(a1, env)
 
+		case "try*":
+			if len(list) != 3 {
+				return nil, fmt.Errorf("try* invalid args: %v", list)
+			}
+			catch, err := GetList(a2)
+			if err != nil {
+				return nil, err
+			}
+			if len(catch.Value) != 3 {
+				return nil, fmt.Errorf("catch* invalid args: %v", catch.Value)
+			}
+			sym, err := GetSymbol(catch.Value[0])
+			if err != nil {
+				return RaiseTypeError("symbol", catch.Value[0])
+			}
+			if sym.Value != "catch*" {
+				return RaiseTypeError("catch* symbol", sym)
+			}
+			try, err := EVAL(a1, env)
+			if err == nil {
+				return try, nil
+			}
+			var expr MalType
+			switch err := err.(type) {
+			case MalError:
+				expr = err.Value
+			default:
+				expr = MalString{Value: err.Error()}
+			}
+			inner, err := env.New(catch.Value[1:2], []MalType{expr})
+			if err != nil {
+				return nil, err
+			}
+			return EVAL(catch.Value[2], inner)
+
 		default:
 			// evaluate functions
 			eval, err := evalAst(ast, env)

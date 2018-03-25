@@ -24,6 +24,14 @@ func RaiseTypeError(expectedType string, actual MalType) (MalType, error) {
 	return nil, NewTypeError(expectedType, actual)
 }
 
+type MalError struct {
+	Value MalType
+}
+
+func (e MalError) Error() string {
+	return fmt.Sprint(e.Value)
+}
+
 type MalList struct {
 	Value []MalType
 	// TODO: make these unexported
@@ -106,6 +114,19 @@ func GetMap(val MalType) (MalMap, error) {
 	return MalMap{}, NewTypeError("map", val)
 }
 
+func IsMap(val MalType) bool {
+	_, ok := val.(MalMap)
+	return ok
+}
+
+func CopyMap(val MalMap) MalMap {
+	m := make(map[MalType]MalType)
+	for k, v := range val.Value {
+		m[k] = v
+	}
+	return MalMap{Value: m}
+}
+
 type MalAtom struct {
 	Value MalType
 }
@@ -129,6 +150,11 @@ func GetAtom(val MalType) (*MalAtom, error) {
 	return nil, NewTypeError("atom", val)
 }
 
+func IsAtom(val MalType) bool {
+	_, ok := val.(*MalAtom)
+	return ok
+}
+
 type MalSymbol struct {
 	Value string
 }
@@ -142,6 +168,11 @@ func GetSymbol(val MalType) (MalSymbol, error) {
 		return ms, nil
 	}
 	return MalSymbol{}, NewTypeError("symbol", val)
+}
+
+func IsSymbol(val MalType) bool {
+	_, ok := val.(MalSymbol)
+	return ok
 }
 
 type MalString struct {
@@ -159,6 +190,11 @@ func GetString(val MalType) (MalString, error) {
 	return MalString{}, NewTypeError("string", val)
 }
 
+func IsString(val MalType) bool {
+	_, ok := val.(MalString)
+	return ok
+}
+
 type MalKeyword struct {
 	Value string
 }
@@ -172,6 +208,11 @@ func GetKeyword(val MalType) (MalKeyword, error) {
 		return mk, nil
 	}
 	return MalKeyword{}, NewTypeError("keyword", val)
+}
+
+func IsKeyword(val MalType) bool {
+	_, ok := val.(MalKeyword)
+	return ok
 }
 
 type MalInt struct {
@@ -189,6 +230,11 @@ func GetInt(val MalType) (MalInt, error) {
 	return MalInt{}, NewTypeError("int", val)
 }
 
+func IsInt(val MalType) bool {
+	_, ok := val.(MalInt)
+	return ok
+}
+
 type MalBool struct {
 	Value bool
 }
@@ -204,9 +250,24 @@ func GetBool(val MalType) (MalBool, error) {
 	return MalBool{}, NewTypeError("bool", val)
 }
 
+func IsBool(val MalType) bool {
+	_, ok := val.(MalBool)
+	return ok
+}
+
 var MalTrue = MalBool{Value: true}
 
+func IsTrue(val MalType) bool {
+	b, ok := val.(MalBool)
+	return ok && b.Value
+}
+
 var MalFalse = MalBool{Value: false}
+
+func IsFalse(val MalType) bool {
+	b, ok := val.(MalBool)
+	return ok && !b.Value
+}
 
 type MalNil struct {
 	Value interface{}
@@ -214,6 +275,11 @@ type MalNil struct {
 
 func (MalNil) String() string {
 	return "nil"
+}
+
+func IsNil(val MalType) bool {
+	_, ok := val.(MalNil)
+	return ok
 }
 
 func IsTruthy(val MalType) bool {
@@ -225,11 +291,6 @@ func IsTruthy(val MalType) bool {
 	default:
 		return true
 	}
-}
-
-func IsNil(val MalType) bool {
-	_, ok := val.(MalNil)
-	return ok
 }
 
 type MalFunc struct {
