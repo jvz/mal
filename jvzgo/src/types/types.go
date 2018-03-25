@@ -389,11 +389,11 @@ func GetFn(val MalType) (func([]MalType) (MalType, error), error) {
 }
 
 func IsFn(val MalType) bool {
-	switch val.(type) {
+	switch val := val.(type) {
 	case MalFn:
 		return true
 	case MalFunc:
-		return true
+		return !val.isMacro
 	case func([]MalType) (MalType, error):
 		return true
 	default:
