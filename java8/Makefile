@@ -2,7 +2,7 @@
 TESTS =
 
 
-SOURCES_BASE = src/main/java/mal/Types.java \
+SOURCES_BASE = src/main/java/mal/Types.java src/main/java/mal/IO.java \
                src/main/java/mal/Reader.java src/main/java/mal/Printer.java
 SOURCES_LISP = src/main/java/mal/Env.java src/main/java/mal/Core.java \
                src/main/java/mal/stepA_mal.java
