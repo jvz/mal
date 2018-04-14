@@ -1,0 +1,11 @@
+#!/bin/bash
+if [ "$#" -gt 0 ]
+then
+    args="-Dexec.args='$1'"
+    for a in "${@:2}"; do
+        args="$args '$a'"
+    done
+    exec mvn -quiet exec:java -Dexec.mainClass="mal.${STEP:-stepA_mal}" "$args"
+else
+    exec mvn -quiet exec:java -Dexec.mainClass="mal.${STEP:-stepA_mal}"
+fi

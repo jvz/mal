@@ -83,7 +83,7 @@ IMPLS = ada awk bash basic c chuck clojure coffee common-lisp cpp crystal cs d d
 	haxe hy io java js julia kotlin livescript logo lua make mal matlab miniMAL \
 	nasm nim objc objpascal ocaml perl perl6 php pil plpgsql plsql powershell ps \
 	python r racket rexx rpython ruby rust scala scheme skew swift swift3 tcl \
-	ts vb vhdl vimscript yorick scalaz jvzgo
+	ts vb vhdl vimscript yorick scalaz jvzgo java8
 
 EXTENSION = .mal
 
@@ -202,6 +202,7 @@ haxe_STEP_TO_PROG =    $(haxe_STEP_TO_PROG_$(haxe_MODE))
 hy_STEP_TO_PROG =      hy/$($(1)).hy
 io_STEP_TO_PROG =      io/$($(1)).io
 java_STEP_TO_PROG =    java/target/classes/mal/$($(1)).class
+java8_STEP_TO_PROG =   java8/target/classes/mal/$($(1)).class
 js_STEP_TO_PROG =      js/$($(1)).js
 julia_STEP_TO_PROG =   julia/$($(1)).jl
 jvzgo_STEP_TO_PROG =   jvzgo/$($(1))
