@@ -83,7 +83,7 @@ IMPLS = ada awk bash basic c chuck clojure coffee common-lisp cpp crystal cs d d
 	haxe hy io java js julia kotlin livescript logo lua make mal matlab miniMAL \
 	nasm nim objc objpascal ocaml perl perl6 php pil plpgsql plsql powershell ps \
 	python r racket rexx rpython ruby rust scala scheme skew swift swift3 tcl \
-	ts vb vhdl vimscript yorick scalaz jvzgo java8
+	ts vb vhdl vimscript yorick scalaz jvzgo clj
 
 EXTENSION = .mal
 
@@ -177,6 +177,7 @@ bash_STEP_TO_PROG =    bash/$($(1)).sh
 basic_STEP_TO_PROG =   $(basic_STEP_TO_PROG_$(basic_MODE))
 c_STEP_TO_PROG =       c/$($(1))
 chuck_STEP_TO_PROG =   chuck/$($(1)).ck
+clj_STEP_TO_PROG =     clj/target/$($(1)).jar
 clojure_STEP_TO_PROG = $(clojure_STEP_TO_PROG_$(clojure_MODE))
 coffee_STEP_TO_PROG =  coffee/$($(1)).coffee
 common-lisp_STEP_TO_PROG =  common-lisp/$($(1))
@@ -202,7 +203,6 @@ haxe_STEP_TO_PROG =    $(haxe_STEP_TO_PROG_$(haxe_MODE))
 hy_STEP_TO_PROG =      hy/$($(1)).hy
 io_STEP_TO_PROG =      io/$($(1)).io
 java_STEP_TO_PROG =    java/target/classes/mal/$($(1)).class
-java8_STEP_TO_PROG =   java8/target/classes/mal/$($(1)).class
 js_STEP_TO_PROG =      js/$($(1)).js
 julia_STEP_TO_PROG =   julia/$($(1)).jl
 jvzgo_STEP_TO_PROG =   jvzgo/$($(1))
