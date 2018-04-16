@@ -1,9 +1,7 @@
 (defproject mal "0.0.1-SNAPSHOT"
   :description "Make-A-Lisp"
 
-  :dependencies [[org.clojure/clojure "1.9.0"]
-                 [org.clojure/tools.reader "0.8.3"]
-                 [net.n01se/clojure-jna "1.0.0"]]
+  :dependencies [[org.clojure/clojure "1.9.0"]]
 
   ;; To run a step with correct readline behavior:
   ;;   lein trampoline with-profile stepX run
@@ -41,5 +39,7 @@
                      :aot [mal.step9-try]}
              :stepA {:main mal.stepA-mal
                      :uberjar-name "stepA_mal.jar"
-                     :aot [mal.stepA-mal]}})
+                     :aot [mal.stepA-mal]}
+             :dev {:plugins [[cider/cider-nrepl "0.16.0"]]}
+             })
 
